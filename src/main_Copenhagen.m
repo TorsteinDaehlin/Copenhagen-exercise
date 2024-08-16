@@ -1,5 +1,4 @@
-function InclineVsBlock2021
-% InclineVsBlock2021.m
+% main_Copenhagen.m
 % -------------------------------------------------------------------------
 % Performes inverse dynamics batch processing of vertical and approach
 % jumps collected using a Qualisys motion capture system, 2 AMTI force
@@ -29,7 +28,7 @@ function InclineVsBlock2021
 % references to research literature, see comments in source code files.
 %
 % -------------------------------------------------------------------------
-% Written by Torstein E. Daehlin, August 2021.
+% Written by Torstein E. Daehlin, PhD August 2024.
 % -------------------------------------------------------------------------
 
 % References:
@@ -40,12 +39,25 @@ function InclineVsBlock2021
 %}
 %
 %==========================================================================
-clear; clc; close all; % preamble
 
-% Get user input
-% ==============
-% Prompt user for participant path
-participant_path = uigetdir(pwd,'Select paraticipant directory');
+function main_Copenhagen()
+
+% Initialize workspace
+% ====================
+
+% Add paths to dependencies
+addpath('.\Initialize\');
+
+% Prompt user to select participant directory
+[subj_dir, src_path] = GetSubjDir();
+
+% Create output directory
+dst_path = regexp(src_path, filesep, 'split');
+dst_path = fullfile(dst_path{1:end-1},'Output');
+
+if ~isfolder(dst_path)
+    mkdir(dst_path);
+end
 
 % Requrest processing input (e.g. filter parameters)
 answers = inputdlg({'Enter filter cut-off (Hz):','Enter filter order:'},'Enter desired filter parameters');

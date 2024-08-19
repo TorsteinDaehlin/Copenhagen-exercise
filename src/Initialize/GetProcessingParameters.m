@@ -45,7 +45,7 @@ cont_btn.ButtonPushedFcn = @(src,~)uiresume(ancestor(src,'figure'));
 fig.Visible = 'on';
 uiwait(fig);
 
-% Get values once pushed
+% Get values after button press
 if ~isempty(static_field.Value)
     static_id = static_field.Value;
 else

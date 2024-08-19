@@ -2,7 +2,9 @@
 
 function RunInverseDynamics()
 
-% Load static file
+% Create participant model
+
+
 
 
 

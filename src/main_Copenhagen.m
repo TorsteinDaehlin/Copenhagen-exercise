@@ -51,6 +51,15 @@ addpath('.\Initialize\');
 % Prompt user to select participant directory
 [subj_dir, src_path] = GetSubjDir();
 
+% Look for marker registration file in participant directory. If not there,
+% prompt user to open marker registration file
+if isfile(fullfile(subj_dir.folder,'model_setup.csv'))
+    marker_reg = readtable(fullfile(subj_dir.folder, 'model_setup.csv'));
+else
+    [reg_file, reg_path] = uigetfile('..\..\*.csv');
+    marker_reg = readtable(fullfile(reg_path, reg_file));
+end
+
 % Create output directory
 dst_path = regexp(src_path, filesep, 'split');
 dst_path = fullfile(dst_path{1:end-1},'Output');
@@ -99,10 +108,15 @@ for s = 1:length(subj_dir)
     % Start inverse dynamics subroutine
     % =================================
     % Add path to dependencies
+    addpath('.\Preproccess\');
     addpath('.\InverseDynamics\');
 
     % Preprocess input data
-    
+    [] = PreprocessMOCAP(subj, marker_reg, flt);
+
+    % Transform force to top of stand
+
+    % Run inverse dynamics procedure
 
     % Generate participant model
     % --------------------------

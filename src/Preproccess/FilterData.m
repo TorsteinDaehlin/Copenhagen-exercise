@@ -1,18 +1,19 @@
-function filtered_data = FilterData(raw_data, filter_parameters, type)
+function filtered_data = FilterData(raw_data, filter_parameters, data_type)
 
-if isequal(lower(type),'markers')
+if isequal(lower(data_type),'markers')
     % Construct filter coefficients for butterworth filter
     [B, A] = butter(filter_parameters.order/2, filter_parameters.fc/(filter_parameters.fs/2), filter_parameters.type);
 
     % Get field names in raw data structure
     label_names = fieldnames(raw_data);
+    label_names = label_names(~strcmp(label_names, {'meta'}));
 
     % Filter raw data
     for i = 1:length(label_names)
         filtered_data.(label_names{i}) = filtfilt(B, A, raw_data.(label_names{i}));
     end
 
-elseif isequal(lower(type),'force')
+elseif isequal(lower(data_type),'force')
     % Construct filter coefficients for butterworth filter
     [B, A] = butter(filter_parameters.order/2, filter_parameters.fc/(filter_parameters.fs/2), filter_parameters.type);
 
@@ -26,7 +27,7 @@ elseif isequal(lower(type),'force')
     end
 else
     % Print error message
-    error(['Invalid data type name: ' type]);
+    error(['Invalid data type name: ' data_type]);
 
 end
 end

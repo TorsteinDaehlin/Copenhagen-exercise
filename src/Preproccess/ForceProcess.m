@@ -1,4 +1,4 @@
-function grf = ForceProcess(data_struct, filter_parameters)
+function grf = ForceProcess(force, filter_parameters)
 
 %{
 Forces acting on the force platform (i.e. the action forces, not the ground
@@ -17,19 +17,12 @@ X              /_ _ _ _ _ _ _ _ _ _ _ _/
 %}
 
 % Set parameters
-side = {'left','right'};
-nof = data_struct.Force(1).NrOfSamples;
+nof = force(1).meta.nof;
 
 % Loop over force platforms
-for i = 1:length(side)
-    % Extract grf data from data structure
-    grf.(side{i}).force = data_struct.Force(i).Force';
-    grf.(side{i}).moment = data_struct.Force(i).Moment';
-    grf.(side{i}).cop = data_struct.Force(i).COP'./1000;
-
+for i = 1:length(force)
     % Define force platform origin
-    grf.(side{i}).corners = data_struct.Force(i).ForcePlateLocation./1000;
-    grf.(side{i}).origin = mean(grf.(side{i}).corners);
+    force(i).origin = mean(force(i).fp_location);
 
     % Define force platform coordinate system
     temp_x = 0.5*(grf.(side{i}).corners(1,:) + grf.(side{i}).corners(4,:)) - ...

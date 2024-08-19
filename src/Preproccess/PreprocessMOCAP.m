@@ -67,10 +67,10 @@ if nargout > 1
     force.meta.fs = qtm_struct.(struct_name{:}).Force(1).Frequency;
 
     for j = 1:length(qtm_struct.(struct_name{:}).Force)
-        force(j).fp_location = qtm_struct.(struct_name{:}).Force(j).ForcePlateLocation;
-        force(j).force = qtm_struct.(struct_name{:}).Force(j).Force;
-        force(j).moment = qtm_struct.(struct_name{:}).Force(j).Moment;
-        force(j).cop = qtm_struct.(struct_name{:}).Force(j).COP;
+        force(j).fp_location = qtm_struct.(struct_name{:}).Force(j).ForcePlateLocation./1000; % Convert to meters
+        force(j).force = qtm_struct.(struct_name{:}).Force(j).Force';
+        force(j).moment = qtm_struct.(struct_name{:}).Force(j).Moment';
+        force(j).cop = qtm_struct.(struct_name{:}).Force(j).COP'./1000; % Convert to meters
     end
     
     % Assign force data to varargout

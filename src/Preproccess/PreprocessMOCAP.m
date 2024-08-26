@@ -3,10 +3,10 @@ function [static, dynamic] = PreprocessMOCAP(subj, marker_reg, flt)
 % Parse static file(s)
 for i = 1:length(subj.static_name)
     % Load static file
-    raw_static(i) = load(fullfile(subj.data_path, subj.static_name{i}));
+    raw_static = load(fullfile(subj.data_path, subj.static_name{i}));
 
     % Parse file
-    static(i).markers = ParseQTM(raw_static(i), marker_reg); 
+    static(i).markers = ParseQTM(raw_static, marker_reg); 
 
     % Filter marker data
     flt.fs = static(i).markers.meta.fs;
@@ -17,10 +17,10 @@ end
 % Parse dynamic files
 for i = 1:length(subj.move_name)
     % Load dynamic file
-    raw_dynamic(i) = load(fullfile(subj.data_path, subj.move_name{i}));
+    raw_dynamic = load(fullfile(subj.data_path, subj.move_name{i}));
 
     % Parse file
-    [dynamic(i).markers, dynamic(i).force] = ParseQTM(raw_dynamic(i), marker_reg);
+    [dynamic(i).markers, dynamic(i).force] = ParseQTM(raw_dynamic, marker_reg);
 
     % Filter markers
     flt.fs = dynamic(i).markers.meta.fs;
@@ -34,8 +34,15 @@ end
 
 if length(static) > 1
     % Prompt user to assign static file to distinct moving trials
+    for i = 1:length(static)
+        static_name = ['Static ' num2str(i)];
+        idx = listdlg('ListString', subj.move_name, 'PromptString', ...
+            ['Select trials to be matched with ' static_name]);
+        static(i).match_to_move = subj.move_name(idx);
+    end
 else
     % Assume that all moving trials should be matched to the static trial
+    static.match_to_move = subj.move_name;
 end
 
 end
@@ -62,11 +69,11 @@ end
 
 % Parse forces
 if nargout > 1
-    force.meta.SamplinFactor = qtm_struct.(struct_name{:}).Force(1).SamplingFactor;
-    force.meta.nof = qtm_struct.(struct_name{:}).Force(1).NrOfFrames;
-    force.meta.fs = qtm_struct.(struct_name{:}).Force(1).Frequency;
-
+    
     for j = 1:length(qtm_struct.(struct_name{:}).Force)
+        force(j).meta.SamplingFactor = qtm_struct.(struct_name{:}).Force(1).SamplingFactor;
+        force(j).meta.nof = qtm_struct.(struct_name{:}).Force(1).NrOfFrames;
+        force(j).meta.fs = qtm_struct.(struct_name{:}).Force(1).Frequency;
         force(j).fp_location = qtm_struct.(struct_name{:}).Force(j).ForcePlateLocation./1000; % Convert to meters
         force(j).force = qtm_struct.(struct_name{:}).Force(j).Force';
         force(j).moment = qtm_struct.(struct_name{:}).Force(j).Moment';

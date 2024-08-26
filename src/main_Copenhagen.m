@@ -1,5 +1,4 @@
-function InclineVsBlock2021
-% InclineVsBlock2021.m
+% main_Copenhagen.m
 % -------------------------------------------------------------------------
 % Performes inverse dynamics batch processing of vertical and approach
 % jumps collected using a Qualisys motion capture system, 2 AMTI force
@@ -29,7 +28,7 @@ function InclineVsBlock2021
 % references to research literature, see comments in source code files.
 %
 % -------------------------------------------------------------------------
-% Written by Torstein E. Daehlin, August 2021.
+% Written by Torstein E. Daehlin, PhD August 2024.
 % -------------------------------------------------------------------------
 
 % References:
@@ -40,105 +39,96 @@ function InclineVsBlock2021
 %}
 %
 %==========================================================================
-clear; clc; close all; % preamble
 
-% Get user input
-% ==============
-% Prompt user for participant path
-participant_path = uigetdir(pwd,'Select paraticipant directory');
+function main_Copenhagen()
+
+% Initialize workspace
+% ====================
+
+% Add paths to dependencies
+addpath('.\Initialize\');
+
+% Prompt user to select participant directory
+[subj_dir, src_path] = GetSubjDir();
+
+% Look for marker registration file in participant directory. If not there,
+% prompt user to open marker registration file
+if isfile(fullfile(subj_dir.folder,'model_setup.csv'))
+    marker_reg = readtable(fullfile(subj_dir.folder, 'model_setup.csv'));
+else
+    [reg_file, reg_path] = uigetfile('..\..\*.csv');
+    marker_reg = readtable(fullfile(reg_path, reg_file));
+end
+
+% Create output directory
+dst_path = regexp(src_path, filesep, 'split');
+dst_path = fullfile(dst_path{1:end-1},'Output');
+
+if ~isfolder(dst_path)
+    mkdir(dst_path);
+end
 
 % Requrest processing input (e.g. filter parameters)
-answers = inputdlg({'Enter filter cut-off (Hz):','Enter filter order:'},'Enter desired filter parameters');
-filter_parameters.fc = str2double(answers{1});
-filter_parameters.order = str2double(answers{2});
+[static_id, flt] = GetProcessingParameters();
 
-list = {'low','high','bandpass','stop'};
-[idx, tf] = listdlg('ListString',list,'PromptString','Select filter type','SelectionMode','single');
-if tf
-    filter_parameters.type = list{idx};
-else
-    warning('No selection was made for filter type. A low-pass filter will be applied');
-    filter_parameters.type = 'low';
+if isempty(static_id) || isempty(flt)
+    fprintf('Please fill provide all processing parameters\n');
+    [static_id, flt] = GetProcessingParameters();
 end
 
-% Inspect participant directory
-% =============================
-% Get directory contents
-participant_folder = dir(participant_path);
+for s = 1:length(subj_dir)
+    % Inspect participant directory
+    % =============================
+    % Store dirctory as participant name
+    subj.id = subj_dir(s).name;
 
-% Extract pretest, midtest, and posttest folders
-keep_list = [];
-for i = 1:length(participant_folder)
-    if ismember(lower(participant_folder(i).name),{'pretest','midtest','posttest'})
-        keep_list = [keep_list; i];
+    % Prompt user to provide height and mass
+    prompt = {'Enter participant height (m):', ...
+        'Enter participant mass (kg):'};
+    answer = inputdlg(prompt, 'Height and mass');
+    subj.height = str2double(answer{1});
+    subj.mass = str2double(answer{2});
+
+    % Get directory contents
+    motion_files = dir(fullfile(subj_dir(s).folder, subj_dir(s).name));
+    motion_files = motion_files(~(strcmp({motion_files.name}, {'.'}) | ...
+        strcmp({motion_files.name}, {'..'})));
+
+    % Error check input
+    static_idx = contains({motion_files.name}, static_id);
+    if ~any(static_idx)
+        error('No static trial whose file name contains "%s".', static_id);
     end
-end
-participant_folder = participant_folder(keep_list);
 
-% Error check folder contents
-if length(participant_folder) < 1
-    error(['No folders in directory. Please check contents of ' participant_path]);
-elseif length(participant_folder) == 1
-    warning(['Only one folder named "' participant_folder(1).name '" is located in ' participant_path])
-elseif length(participant_folder) == 2
-    warning(['Only two folders named "' participant_folder(1).name '" and "' participant_folder(2).name '" is located in ' participant_path])
-end
+    % Get file name(s) and directories
+    subj.data_path = motion_files(1).folder;
+    subj.static_name = {motion_files(static_idx).name};
+    subj.move_name = {motion_files(~static_idx).name};
 
-% Get relevant participant characteristics
-participant_name = split(participant_path,'\');
-participant_name = participant_name{end};
-[characteristics_name, characteristics_path] = uigetfile('.\*xlsx','Select participant charateristics file');
-characteristics = readtable(fullfile(characteristics_path,characteristics_name),'ReadRowNames',true);
-characteristics = table2struct(characteristics(participant_name,:));
-
-% Create results directory if it does not already exist
-if ~isfolder(fullfile(participant_path,'Results'))
-    status = mkdir(fullfile(participant_path,'Results'));
-    if isequal(status,0)
-        error(['Unable to create directory: ' fullfile(participant_path,'Results')]);
-    end
-end
-
-% Loop over folders
-% =================
-for folder = 1:length(participant_folder)
-    % Get visit name
-    visit_name = participant_folder(folder).name;
-    
-    % Generate participant structure
-    participant.name = participant_name;
-    participant.group = characteristics.Group;
-    participant.age = characteristics.Age;
-    participant.level = characteristics.Level;
-    participant.foot_dominance = characteristics.FootDominance;
-    participant.mass = characteristics.(['BodyMass' visit_name]);
-    participant.height = characteristics.(['Height' visit_name]);
-    
-    % Inspect files in visit folder and error check
-    % ---------------------------------------------
-    % Static files
-    static_files = dir(fullfile(participant_path,participant_folder(folder).name,'Static*.mat'));
-    if isempty(static_files)
-        error(['The folder ' fullfile(participant_path,participant_folder(folder).name) ' does not contain a static file']);
-    elseif length(static_files) > 1
-        warning(['The folder ' fullfile(participant_path,participant_folder(folder).name) ' contains multiple static files']);
-    end
-    
-    
-    
-    % Begin Inverse dynamics subroutine
+    % Start inverse dynamics subroutine
     % =================================
+    % Add path to dependencies
+    addpath('.\Preproccess\');
+    addpath('.\InverseDynamics\');
+
+    % Preprocess input data
+    [static, dynamic] = PreprocessMOCAP(subj, marker_reg, flt);
+
+    % Transform force to top of stand
+
+    % Run inverse dynamics procedure
+
     % Generate participant model
     % --------------------------
     for j = 1:length(static_files)
         % Get trial files
         trial_files = dir(fullfile(participant_path,participant_folder(folder).name,'*.mat'));
-        
+
         % Create list of static names
         for sdx = 1:length(static_files)
             static_list{sdx} = static_files(sdx).name;
         end
-        
+
         % Remove static trials from trial_files structure
         tdx = 1;
         while tdx <= length(trial_files)
@@ -148,11 +138,11 @@ for folder = 1:length(participant_folder)
                 tdx = tdx+1;
             end
         end
-        
+
         % Load static file
         static_name = strtok(static_files(j).name,'.');
         load(fullfile(static_files(j).folder,static_files(j).name),static_name);
-        
+
         % If there are more than one static trial, match moving trials with
         % the current static file
         if length(static_files) > 1
@@ -160,14 +150,14 @@ for folder = 1:length(participant_folder)
             for tdx = 1:length(trial_files)
                 trial_list{tdx} = trial_files(tdx).name;
             end
-            
+
             % Get user input on which trials to match to current static
             % trial
             [idx, tf] = listdlg('ListString',trial_list,'PromptString',['Match to: ' static_files(j).name]);
             if tf
                 % Get list of trials to retain
                 retain_list = trial_list(idx);
-                
+
                 % Remove trials that were not selected from the trial_files
                 % structure
                 tdx = 1;
@@ -182,10 +172,10 @@ for folder = 1:length(participant_folder)
                 warning(['No trials were selected. No moving trials will be matched to: ' static_files(j).name]);
             end
         end
-        
+
         % Define subject model
         [static_markers, static_lcs, static_jc, segments] = ProcessStatic(Static, filter_parameters, participant, visit_name);
-        
+
         % Loop over dynamic files
         % -----------------------
         % Initialize variables
@@ -193,22 +183,22 @@ for folder = 1:length(participant_folder)
             jump_height = struct('AJL', 0, 'AJR', 0, 'VJ', 0);
             output = struct('AJL', [], 'AJR', [], 'VJ', []);
         end
-        
+
         for i = 1:length(trial_files)
             % Find trial name
             trial_name = strtok(trial_files(i).name,'.');
             fprintf('\nNow processing: %s\n--------------------\n', trial_name);
-            
+
             % Load dynamic file
             load(fullfile(trial_files(i).folder,trial_files(i).name),trial_name);
-            
+
             % Process dynamic file
             [kinematics, kinetics, time] = ProcessDynamic(static_markers, static_lcs, static_jc, segments, eval(trial_name), filter_parameters, ...
                 trial_name, visit_name);
-            
+
             % Label events and extract values for export
-            events = FindEvents(kinematics, kinetics, trial_name(1:end-1)); 
-            
+            events = FindEvents(kinematics, kinetics, trial_name(1:end-1));
+
             % Extract values for export %MAKE SURE THAT ALL VARIABLES OF
             % INTEREST ARE BEING EXPORTED
             switch trial_name(1:end-1)
@@ -226,811 +216,19 @@ for folder = 1:length(participant_folder)
     % Save output structure
     save(fullfile(participant_path,'Results',[participant.name '_' visit_name '.mat']),'output');
 end
-
-end
-
-function [static_markers, static_lcs, static_jc, segments] = ProcessStatic(data_struct, filter_parameters, participant, visit_name)
-
-% Get temporal characteristics
-nof = data_struct.Frames;
-frame_rate = data_struct.FrameRate;
-
-% Extract marker data
-static_markers = DefineMarkers(data_struct);
-
-% Filter marker trajectories
-filter_parameters.fs = frame_rate;
-static_markers = FilterData(static_markers, filter_parameters, 'markers');
-
-% Reduce static markers and define anatomical coordinate systems
-marker_names = fieldnames(static_markers);
-for i = 1:length(marker_names)
-    static_markers.(marker_names{i}) = mean(static_markers.(marker_names{i})((nof/2)-(frame_rate/2):(nof/2)+(frame_rate/2),:));
-end
-
-% Define local coordinate systems
-[static_lcs, static_jc] = DefineLocalSystems(static_markers);
-
-% Define segment parameters
-segments = DefineSegments(static_markers, static_jc, participant);
-
-% Plot static trial
-PlotStatic(static_markers, static_lcs, static_jc, segments, participant, visit_name);
-
-end
-
-function [kinematics, kinetics, time] = ProcessDynamic(static_markers, static_lcs, static_jc, segments, data_struct, filter_parameters, trial_name, visit_name)
-
-% Get temporal characteristics
-nof = data_struct.Frames;
-time = (1:nof)'./data_struct.FrameRate;
-
-% Extract marker and force data
-dynamic_markers = DefineMarkers(data_struct);
-grf = ForceProcess(data_struct, filter_parameters);
-
-% Filter marker data
-filter_parameters.fs = data_struct.FrameRate;
-dynamic_markers = FilterData(dynamic_markers, filter_parameters, 'markers');
-
-% Compute dynamic poses
-[dynamic_lcs, dynamic_jc] = PoseEstimation(dynamic_markers, static_markers, static_lcs, static_jc, nof);
-
-% Calculate linear kinematics
-[position, velocity, acceleration] = FindLinearKinematics(segments, dynamic_lcs, time, nof);
-
-% Calculate angular kinematics
-[segment_angles, joint_angles, angular_velocity, angular_acceleration] = ...
-    FindAngularKinematics(dynamic_lcs, static_lcs, nof, time);
-
-% Calculate angular kinetics
-njm = CalculatejointMoments(segments, dynamic_lcs, dynamic_jc, grf, angular_velocity, angular_acceleration, acceleration, position, nof);
-
-% Calculate joint power
-joint_power = CalculateJointPower(njm, angular_velocity, dynamic_lcs, nof);
-
-% Plot dynamic trial
-% PlotDynamic(dynamic_markers, dynamic_lcs, dynamic_jc, grf, trial_name, visit_name, nof);
-
-% Find normalized centre of pressure
-relative_cop = FindRelativeCop(dynamic_markers, dynamic_lcs, segments, grf, nof);
-
-% Assign output structures
-kinematics = struct('position',position,'velocity',velocity,'acceleration',acceleration,'segment_angles',segment_angles, ...
-    'joint_angles',joint_angles,'angular_velocity',angular_velocity,'angular_acceleration',angular_acceleration);
-kinetics = struct('njm',njm,'joint_power',joint_power,'grf',grf,'relative_cop',relative_cop);
-
-end
-
-function markers = DefineMarkers(data_struct)
-% DefineMarkers
-% -------------------------------------------------------------------------
-% Extracts markers from .mat files exported from Qualisys Track Manager
-% (QTM) and organizes the markers in a structure with fields correcsponding
-% to each marker in the QTM-file. The fields are named using the marker
-% labels given in QTM.
-% -------------------------------------------------------------------------
-% Syntax and description: markers = defineMarkers(data) returns
-% a structure containing trajectories of markers labeled using QTM. The
-% function takes the structure 'data' produced by QTM when motion capture
-% data is exported in .mat format as input. The fields in the output
-% structure are named according to the names of marker labels in the .qtm
-% file. Marker trajectories are expressed in the global coordiante system.
-% -------------------------------------------------------------------------
-% Written by Torstein E. Daehlin, June 2019
-% Revised by Torstein E. Daehlin, August 2021
-% -------------------------------------------------------------------------
-
-% Extract marker labels
-label_names = data_struct.Trajectories.Labeled.Labels;
-
-% Assign output structure
-for i = 1:length(label_names)
-    markers.(label_names{i}) = permute(data_struct.Trajectories.Labeled.Data(i,1:3,:),[3 2 1])/1000;
 end
 end
 
-function grf = ForceProcess(data_struct, filter_parameters)
 
-%{
-Forces acting on the force platform (i.e. the action forces, not the ground
-reaction forces) are expressed in the local coordiante system of the force
-platform and must therefore be transformed to the global coordinate system.
-                       _ _ _ _ _ _ _ _ _ _ _ _
-                      /                       /
-   Z                 /       x               /
-   |                /       /               /
-   |     Connector /    FP /_ _ _ y        /
-LAB|_ _ _ _ Y     /       |               /
-  /              /        |              /
- /              /         z             /
-X              /_ _ _ _ _ _ _ _ _ _ _ _/
- 
-%}
 
-% Set parameters
-side = {'left','right'};
-nof = data_struct.Force(1).NrOfSamples;
 
-% Loop over force platforms
-for i = 1:length(side)
-    % Extract grf data from data structure
-    grf.(side{i}).force = data_struct.Force(i).Force';
-    grf.(side{i}).moment = data_struct.Force(i).Moment';
-    grf.(side{i}).cop = data_struct.Force(i).COP'./1000;
-    
-    % Define force platform origin
-    grf.(side{i}).corners = data_struct.Force(i).ForcePlateLocation./1000;
-    grf.(side{i}).origin = mean(grf.(side{i}).corners);
-    
-    % Define force platform coordinate system
-    temp_x = 0.5*(grf.(side{i}).corners(1,:) + grf.(side{i}).corners(4,:)) - ...
-        0.5*(grf.(side{i}).corners(2,:) + grf.(side{i}).corners(3,:));
-    epx = temp_x/norm(temp_x);
-    temp_y = 0.5*(grf.(side{i}).corners(1,:) + grf.(side{i}).corners(2,:)) - ...
-        0.5*(grf.(side{i}).corners(3,:) + grf.(side{i}).corners(4,:));
-    temp_z = cross(epx,temp_y);
-    epz = temp_z/norm(temp_z);
-    epy = cross(epz,epx);
-    R.(side{i}) = [epx' epy' epz'];
-    
-    % Calculate free moment
-    grf.(side{i}).free_moment = zeros(nof,3);
-    grf.(side{i}).free_moment(:,3) = grf.(side{i}).moment(:,3) - grf.(side{i}).cop(:,2).*grf.(side{i}).force(:,1) ...
-        + grf.(side{i}).cop(:,1).*grf.(side{i}).force(:,2);
-    
-    % Transform quantities to the global coordinate system
-    grf.(side{i}).force = ((R.(side{i})*grf.(side{i}).force')*-1)';
-    grf.(side{i}).moment = ((R.(side{i})*grf.(side{i}).moment')*-1)';
-    grf.(side{i}).free_moment = ((R.(side{i})*grf.(side{i}).free_moment')*-1)';
-    grf.(side{i}).cop = ((R.(side{i})*grf.(side{i}).cop') + grf.(side{i}).origin')';
-    
-    % Filter force data
-    filter_parameters.fs = data_struct.Force(i).Frequency;
-    grf_filt = FilterData(grf.(side{i}), filter_parameters, 'force');
-    
-    % Downsample force
-    grf.(side{i}).force = downsample(grf_filt.force,5);
-    grf.(side{i}).moment = downsample(grf_filt.moment,5);
-    grf.(side{i}).free_moment = downsample(grf_filt.free_moment,5);
-    grf.(side{i}).cop = downsample(grf_filt.cop,5);
-end
-end
 
-function filtered_data = FilterData(raw_data, filter_parameters, type)
 
-if isequal(lower(type),'markers')
-    % Construct filter coefficients for butterworth filter
-    [B, A] = butter(filter_parameters.order/2, filter_parameters.fc/(filter_parameters.fs/2), filter_parameters.type);
-    
-    % Get field names in raw data structure
-    label_names = fieldnames(raw_data);
-    
-    % Filter raw data
-    for i = 1:length(label_names)
-        filtered_data.(label_names{i}) = filtfilt(B, A, raw_data.(label_names{i}));
-    end
-    
-elseif isequal(lower(type),'force')
-    % Construct filter coefficients for butterworth filter
-    [B, A] = butter(filter_parameters.order/2, filter_parameters.fc/(filter_parameters.fs/2), filter_parameters.type);
-    
-    % Get field names in raw data structure and define field names of
-    % structures that need filtering
-    var_names = {'force','moment','cop','free_moment'};
-    
-    % Filter raw data
-    for j = 1:length(var_names)
-        filtered_data.(var_names{j}) = filtfilt(B, A, raw_data.(var_names{j}));
-    end
-else
-    % Print error message
-    error(['Invalid data type name: ' type]);
-    
-end
 
-end
 
-function [lcs, jc] = DefineLocalSystems(markers)
 
-% Define pelvis system
-% Use ISB recommendation + Harrington et al. 2007 for joint centres
-[lcs.pelvis, jc] = DefinePelvisLcs(markers, 1);
 
-% Define thigh systems
-[lcs.thigh_r, jc] = DefineThighLcs(markers, jc, 1, 'right');
-[lcs.thigh_l, jc] = DefineThighLcs(markers, jc, 1, 'left');
 
-% Define leg systems
-[lcs.leg_r, jc] = DefineLegLcs(markers, jc, 1, 'right');
-[lcs.leg_l, jc] = DefineLegLcs(markers, jc, 1, 'left');
-
-% Define foot coordinate system
-lcs.foot_r = DefineFootLcs(markers, 1, 'right');
-lcs.foot_l = DefineFootLcs(markers, 1, 'left');
-
-% Define rearfoot coordinate systems
-lcs.rearfoot_r = DefineRearfootLcs(markers, 1, 'right');
-lcs.rearfoot_l = DefineRearfootLcs(markers, 1, 'left');
-
-% Define forefoot coordinate system
-lcs.forefoot_r = DefineForefootLcs(markers, 1, 'right');
-lcs.forefoot_l = DefineForefootLcs(markers, 1, 'left');
-end
-
-function [pelvis_lcs, jc] = DefinePelvisLcs(markers, nof)
-% DefinePelvisLcs
-% -------------------------------------------------------------------------
-% Defines the local coordinate system of the pelvis segement in accordance
-% with Cappozzo et al. 1995, Della Croce et al. 1999, and Wu et al. 2002.
-% -------------------------------------------------------------------------
-% Syntax and description: plevis_local_coordinate_system =
-% DefinePelvisLcs(markers, number_of_frames) returns a structure containing
-% time series for origin and local coordiante system axes of the pelvis.
-% The function takes the structure 'markers' containing marker trajectories
-% and the integer 'nof' giving the number of frames contained in the marker
-% data set.
-% -------------------------------------------------------------------------
-% Written by Torstein E. Daehlin, August 2021
-% -------------------------------------------------------------------------
-
-% References:
-%{
-Cappozzo A, Catani F, Della Croce U, Leardini A. Position and orientation
-    in space of bones during movement: anatomical frame definition and
-    determination. Clin Biomech. 1995, 10(17), pp 1–8.
-
-Della Croce U, Cappozzo A, Kerrigan DC. Pelvis and lower limb anatomical
-    landmark calibration precision and its propaga- tion to bone geometry
-    and joint angles. Med Biol Eng Comp. 1999, 37, pp 155–161.
-
-Wu G, Siegler S, Allard P, Kirtley C, Leardini A, Rosenbaum D, et al. ISB
-    recommendation on definitions of joint coordinate system of various
-    joints for the reporting of human joint motion. Part 1: ankle, hip, and
-    spine. J Biomech. 2002, 35, pp 543–548.
-%}
-
-% Preallocate
-origin = zeros(nof,3);
-epx = zeros(nof,3);
-epy = zeros(nof,3);
-epz = zeros(nof,3);
-
-% Define temporary vectors
-temp1 = markers.RASIS - markers.LASIS;
-temp2 = 0.5*(markers.RASIS + markers.LASIS) - 0.5*(markers.RPSIS + markers.LPSIS);
-
-% Define origin and local x-axis
-for i = 1:nof
-    origin(i,:) = 0.5*(markers.RASIS(i,:) + markers.LASIS(i,:));
-    epx(i,:) = temp1(i,:)/norm(temp1(i,:));
-end
-
-% Find the proportion of temp2 projected onto the local x-axis
-proj = dot(temp2',epx');
-
-% Define local y- and z-axes
-for i = 1:nof
-    temp3 = temp2(i,:) - proj(i)*epx(i,:);
-    epy(i,:) = temp3/norm(temp3);
-    temp4 = cross(epx(i,:),epy(i,:));
-    epz(i,:) = temp4/norm(temp4);
-end
-
-% Find hip joint centre
-jc.hip = FindHipCentre(markers, nof);
-
-% Transform hip centres to globla system
-R = [epx', epy', epz'];
-jc.hip_global.right = jc.hip.right*R' + origin;
-jc.hip_global.left = jc.hip.left*R' + origin;
-
-
-% Assing output
-pelvis_lcs.origin = origin;
-pelvis_lcs.epx = epx;
-pelvis_lcs.epy = epy;
-pelvis_lcs.epz = epz;
-end
-
-function hip_centre = FindHipCentre(markers, nof)
-
-% Preallocate
-hip_centre.right = zeros(nof,3);
-hip_centre.left = zeros(nof,3);
-
-% Constants from Harrington et al. 2007 (y = ax + b)
-a = [0.33, -0.24, -0.30];
-b = [7.3 -9.9 -10.9]./1000; % divided by 1000 to convert to meters
-
-% Variables
-for i = 1:nof
-    pelvis_width = norm(markers.RASIS(i,:) - markers.LASIS(i,:));
-    pelvis_depth = norm(0.5*(markers.RASIS(i,:) + markers.LASIS(i,:)) ...
-        - 0.5*(markers.RPSIS(i,:) + markers.LPSIS(i,:)));
-    
-    % Solve regression equations
-    x_hat = a(1)*pelvis_width + b(1);
-    y_hat = a(2)*pelvis_depth + b(2);
-    z_hat = a(3)*pelvis_width + b(3);
-    
-    % Define hip centres
-    hip_centre.right(i,:) = [x_hat, y_hat, z_hat];
-    hip_centre.left(i,:) = [-x_hat, y_hat, z_hat];
-end
-end
-
-function [thigh_lcs, jc] = DefineThighLcs(markers, jc, nof, side)
-
-% Preallocate
-origin = zeros(nof,3);
-epx = zeros(nof,3);
-epy = zeros(nof,3);
-epz = zeros(nof,3);
-
-% Define temporary vectors
-if isequal(lower(side),'right')
-    temp1 = jc.hip_global.(lower(side)) - 0.5*(markers.RMEP + markers.RLEP);
-    temp2 = markers.RLEP - markers.RMEP;
-elseif isequal(lower(side),'left')
-    temp1 = jc.hip_global.(lower(side)) - 0.5*(markers.LMEP + markers.LLEP);
-    temp2 = markers.LMEP - markers.LLEP;
-else
-    error(['Invalid side: ' side]);
-end
-
-% Define local coordinate system
-for i = 1:nof
-    % Origin coincides with hip centre
-    origin(i,:) = jc.hip_global.(lower(side))(i,:);
-    
-    % The local z-axis is pointing from the distal to the proximal joint
-    % centre
-    epz(i,:) = temp1(i,:)/norm(temp1(i,:));
-end
-
-% Find the portion of temp2 projected onto the local z-axis
-proj = dot(temp2',epz');
-
-for i = 1:nof
-    temp3 = temp2(i,:) - proj(i)*epz(i,:);
-    epx(i,:) = temp3/norm(temp3);
-    epy(i,:) = cross(epz(i,:),epx(i,:));
-end
-
-% Find knee joint centre
-if isequal(lower(side),'right')
-    jc.knee_global.(side) = 0.5*(markers.RMEP + markers.RLEP);
-elseif isequal(lower(side),'left')
-    jc.knee_global.(side) = 0.5*(markers.LMEP + markers.LLEP);
-end
-
-% Transform knee centres to local system
-R = [epx', epy', epz'];
-jc.knee.(side) = (jc.knee_global.(side) - origin)*R;
-
-% Assign ouput
-thigh_lcs.origin = origin;
-thigh_lcs.epx = epx;
-thigh_lcs.epy = epy;
-thigh_lcs.epz = epz;
-end
-
-function [leg_lcs, jc] = DefineLegLcs(markers, jc, nof, side)
-
-% Preallocate
-epx = zeros(nof,3);
-epy = zeros(nof,3);
-epz = zeros(nof,3);
-
-% Define temporary vectors
-if isequal(lower(side),'right')
-    temp1 = 0.5*(markers.RMEP + markers.RLEP) - 0.5*(markers.RMMAL + markers.RLMAL);
-    temp2 = markers.RLMAL - markers.RMMAL;
-    origin = 0.5*(markers.RMEP + markers.RLEP);
-elseif isequal(lower(side),'left')
-    temp1 = 0.5*(markers.LMEP + markers.LLEP) - 0.5*(markers.LLMAL + markers.LMMAL);
-    temp2 = markers.LMMAL - markers.LLMAL;
-    origin = 0.5*(markers.LMEP + markers.LLEP);
-else
-    error(['Invalid side: ' side]);
-end
-
-% Define local coordiante system
-for i = 1:nof
-    % The local x-axis is along the line connecting the medial and lateral
-    % malleoli, pointing to the right
-    epz(i,:) = temp1(i,:)/norm(temp1(i,:));
-    
-    % The local y-axis is perpendicular to the torsional plane, formed by
-    % a vector connecting the knee and ankle joint centres and the local
-    % x-axis, pointing anteriorly
-    temp3 = cross(epz(i,:),temp2(i,:));
-    epy(i,:) = temp3/norm(temp3);
-    
-    % The local z-axis is mutually perpendicular to the local x- and y-
-    % axes
-    epx(i,:) = cross(epy(i,:),epz(i,:));
-end
-
-if isequal(lower(side),'right')
-    jc.ankle_global.(side) = 0.5*(markers.RMMAL + markers.RLMAL);
-elseif isequal(lower(side),'left')
-    jc.ankle_global.(side) = 0.5*(markers.LMMAL + markers.LLMAL);
-end
-
-% Transform knee centres to local system
-R = [epx', epy', epz'];
-jc.ankle.(side) = (jc.ankle_global.(side) - origin)*R;
-
-% Assign ouput
-leg_lcs.origin = origin;
-leg_lcs.epx = epx;
-leg_lcs.epy = epy;
-leg_lcs.epz = epz;
-end
-
-function foot_lcs = DefineFootLcs(markers, nof, side)
-
-% Preallocate
-epx = zeros(nof,3);
-epy = zeros(nof,3);
-epz = zeros(nof,3);
-
-% Define temporary vectors
-if isequal(lower(side),'right')
-    temp1 = markers.RMTH5 - markers.RPCAL;
-    temp2 = markers.RMTH1 - markers.RPCAL;
-    temp3 = markers.RPCAL - markers.RMTH2;
-    origin = markers.RPCAL;
-elseif isequal(lower(side),'left')
-    temp1 = markers.LMTH1 - markers.LPCAL;
-    temp2 = markers.LMTH5 - markers.LPCAL;
-    temp3 = markers.LPCAL - markers.LMTH2;
-    origin = markers.LPCAL;
-else
-    error(['Invalid side: ' side]);
-end
-
-% Define vector perpendicular to quasi-transverse plane formed by calcaneus
-% markers and 1st and 5th metatarsal markers
-for i = 1:nof
-    temp_n = cross(temp1(i,:),temp2(i,:));
-    epy(i,:) = temp_n/norm(temp_n);
-end
-
-% Find the proportion of temp3 projected along n_hat
-proj = dot(temp3',epy');
-
-for i = 1:nof
-    temp4 = temp3(i,:) - proj(i)*epy(i,:);
-    epz(i,:) = temp4/norm(temp4);
-    epx(i,:) = cross(epy(i,:),epz(i,:));
-end
-
-% Assign ouput
-foot_lcs.origin = origin;
-foot_lcs.epx = epx;
-foot_lcs.epy = epy;
-foot_lcs.epz = epz;
-end
-
-function rearfoot_lcs = DefineRearfootLcs(markers, nof, side)
-
-% Preallocate
-epx = zeros(nof,3);
-epy = zeros(nof,3);
-epz = zeros(nof,3);
-
-% Define temporary vectors
-if isequal(lower(side),'right')
-    temp1 = markers.RPCAL - 0.5*(markers.RNT + markers.RCU);
-    temp2 = markers.RCU - markers.RNT;
-    origin = markers.RPCAL;
-elseif isequal(lower(side),'left')
-    temp1 = markers.LPCAL - 0.5*(markers.LNT + markers.LCU);
-    temp2 = markers.LNT - markers.LCU;
-    origin = markers.LPCAL;
-else
-    error(['Invalid side: ' side]);
-end
-
-% Define z-axis as the long axis of the segment
-for i = 1:nof
-    epz(i,:) = temp1/norm(temp1);
-end
-
-% Find the proportion of temp2 projected along the local z-axis
-proj = dot(temp2',epz');
-
-% Find the portion of temp2 perpendicular to the z-axis
-for i = 1:nof
-    temp3 = temp2(i,:) - proj(i)*epz(i,:);
-    epx(i,:) = temp3/norm(temp3);
-    epy(i,:) = cross(epz(i,:),epx(i,:));
-end
-
-% Assign ouput
-rearfoot_lcs.origin = origin;
-rearfoot_lcs.epx = epx;
-rearfoot_lcs.epy = epy;
-rearfoot_lcs.epz = epz;
-end
-
-function forefoot_lcs = DefineForefootLcs(markers, nof, side)
-
-% Preallocate
-epx = zeros(nof,3);
-epy = zeros(nof,3);
-epz = zeros(nof,3);
-
-% Define temporary vectors
-if isequal(lower(side),'right')
-    temp1 = markers.RMTH5 - 0.5*(markers.RNT + markers.RCU);
-    temp2 = markers.RMTH1 - 0.5*(markers.RNT + markers.RCU);
-    temp3 = 0.5*(markers.RNT + markers.RCU) - markers.RMTH2;
-    origin = 0.5*(markers.RNT + markers.RCU);
-elseif isequal(lower(side),'left')
-    temp1 = markers.LMTH1 - 0.5*(markers.LNT + markers.LCU);
-    temp2 = markers.LMTH5 - 0.5*(markers.LNT + markers.LCU);
-    temp3 = 0.5*(markers.LNT + markers.LCU) - markers.LMTH2;
-    origin = 0.5*(markers.LNT + markers.LCU);
-else
-    error(['Invalid side: ' side]);
-end
-
-% Define vector perpendicular to quasi-transverse plane formed by the
-% midfoot centre and 1st and 5th metatarsal markers
-for i = 1:nof
-    temp_n = cross(temp1(i,:),temp2(i,:));
-    epy(i,:) = temp_n/norm(temp_n);
-end
-
-% Find the proportion of temp3 projected along n_hat
-proj = dot(temp3',epy');
-
-for i = 1:nof
-    temp4 = temp3(i,:) - proj(i)*epy(i,:);
-    epz(i,:) = temp4/norm(temp4);
-    epx(i,:) = cross(epy(i,:),epz(i,:));
-end
-
-% Assign ouput
-forefoot_lcs.origin = origin;
-forefoot_lcs.epx = epx;
-forefoot_lcs.epy = epy;
-forefoot_lcs.epz = epz;
-end
-
-function PlotStatic(markers, lcs, jc, segments, participant, visit_name)
-
-% Plot parameters
-axis_scale = 0.1;
-line_colors = {'r-','g-','b-'};
-
-% Define figure
-fig = figure('Name',['Static trial - ' visit_name]);
-fig.WindowState = 'maximized';
-
-% Plot global coordinate system
-global_ax = eye(3);
-for j = 1:3
-    plot3([0 global_ax(1,j)*axis_scale*2],[0 global_ax(2,j)*axis_scale*2],[0 global_ax(3,j)*axis_scale*2],line_colors{j});
-    hold on;
-end
-
-% Label global coordinate axes
-text(0.21,0,0,'X','Color','r','FontWeight','bold');
-text(0,0.21,0,'Y','Color','g','FontWeight','bold');
-text(0,0,0.21,'Z','Color','b','FontWeight','bold');
-
-% Plot markers
-marker_names = fieldnames(markers);
-for i = 1:length(marker_names)
-    % Select marker color
-    if marker_names{i}(1) == 'R'
-        marker_color = '#77AC30';
-    elseif marker_names{i}(1) == 'L'
-        marker_color = '#0072BD';
-    else
-        marker_color = '#D95319';
-    end
-    
-    % Plot marker
-    plot3(markers.(marker_names{i})(1),markers.(marker_names{i})(2),markers.(marker_names{i})(3), ...
-        'o','MarkerEdgeColor',marker_color,'MarkerFaceColor',marker_color);
-end
-
-% Plot local coordinate systems 
-lcs_names = fieldnames(lcs);
-axis_names = {'epx','epy','epz'};
-for i = 1:length(lcs_names)
-    for j = 1:length(axis_names)
-        plot3([lcs.(lcs_names{i}).origin(1) lcs.(lcs_names{i}).origin(1)+lcs.(lcs_names{i}).(axis_names{j})(1)*axis_scale], ...
-            [lcs.(lcs_names{i}).origin(2) lcs.(lcs_names{i}).origin(2)+lcs.(lcs_names{i}).(axis_names{j})(2)*axis_scale], ...
-            [lcs.(lcs_names{i}).origin(3) lcs.(lcs_names{i}).origin(3)+lcs.(lcs_names{i}).(axis_names{j})(3)*axis_scale], ...
-            line_colors{j});
-    end
-
-end
-
-% Plot segment centre of mass
-segment_names = fieldnames(segments);
-for i = 1:length(segment_names)
-    R = [lcs.(segment_names{i}).epx' lcs.(segment_names{i}).epy' lcs.(segment_names{i}).epz'];
-    com = R*segments.(segment_names{i}).com' + lcs.(segment_names{i}).origin';
-    plot3(com(1),com(2), com(3), 'g*');
-end
-
-% Plot joint centres
-jc_names = {'hip_global','knee_global','ankle_global'};
-sides = {'right','left'};
-for i = 1:length(jc_names)
-    for j = 1:length(sides)
-        plot3(jc.(jc_names{i}).(sides{j})(1),jc.(jc_names{i}).(sides{j})(2),jc.(jc_names{i}).(sides{j})(3), ...
-            'o','MarkerEdgeColor','#A2142F','MarkerFaceColor','#A2142F','MarkerSize',10);
-    end
-end
-
-% Format axes
-anchor = 0.5*(markers.RCREST + markers.LCREST);
-ax = gca;
-ax.Color = 'k';
-ax.XLim = [anchor(1)-0.75 anchor(1)+0.75];
-ax.YLim = [anchor(2)-0.75 anchor(2)+0.75];
-ax.ZLim = [-0.1 1.4];
-ax.DataAspectRatio = [1 1 1];
-ax.View = [-210 10];
-ax.XLabel.String = 'Position (m)';
-ax.YLabel.String = 'Position (m)';
-ax.ZLabel.String = 'Position (m)';
-
-% Annotate participant characteristics
-x_pos = ax.XLim(1)+0.1;
-y_pos = ax.YLim(end)-0.1;
-z_pos = ax.ZLim(end)-0.1;
-text(x_pos,y_pos,z_pos,participant.name,'Color','w','HorizontalAlignment','center','FontWeight','bold');
-text(x_pos,y_pos,z_pos-0.05,participant.group,'Color','w','HorizontalAlignment','center');
-text(x_pos,y_pos,z_pos-0.10,[num2str(participant.age,2) ' yrs.'],'Color','w','HorizontalAlignment','center');
-text(x_pos,y_pos,z_pos-0.15,[num2str(participant.height,3) ' m'],'Color','w','HorizontalAlignment','center');
-text(x_pos,y_pos,z_pos-0.20,[num2str(participant.mass,3) ' kg'],'Color','w','HorizontalAlignment','center');
-text(x_pos,y_pos,z_pos-0.25,participant.level,'Color','w','HorizontalAlignment','center');
-
-end
-
-function segments = DefineSegments(markers, jc, participant)
-
-% Define segment names
-segment_names = {'pelvis','thigh_r','thigh_l','leg_r','leg_l','foot_r','foot_l'};
-
-% Loop over segments and define segment parameters
-for i = 1:length(segment_names)
-    segments.(segment_names{i}) = CreateSegment(markers, jc, participant, segment_names{i});
-end
-end
-
-function segment = CreateSegment(markers, jc, participant, segment_name)
-
-% Define length, proximal radius, and distal radius for the given segment
-switch segment_name
-    case 'pelvis'
-        len = norm(0.5*(markers.RCREST + markers.LCREST) - 0.5*(markers.RGTR + markers.LGTR));
-        prox_rad = norm(0.5*(markers.RCREST - markers.LCREST));
-        dist_rad = norm(0.5*(markers.RGTR - markers.LGTR));
-        segment.mass = participant.mass*0.142;
-        offset = 0.5*(markers.RCREST + markers.LCREST) - 0.5*(markers.RASIS + markers.LASIS);
-    case 'thigh_r'
-        len = norm(jc.hip_global.right - 0.5*(markers.RMEP + markers.RLEP));
-        prox_rad = norm(jc.hip_global.right - markers.RGTR);
-        dist_rad = norm(0.5*(markers.RMEP - markers.RLEP));
-        segment.mass = participant.mass*0.100;
-    case 'thigh_l'
-        len = norm(jc.hip_global.left - 0.5*(markers.LMEP + markers.LLEP));
-        prox_rad = norm(jc.hip_global.left - markers.LGTR);
-        dist_rad = norm(0.5*(markers.LMEP - markers.LLEP));
-        segment.mass = participant.mass*0.100;
-    case 'leg_r'
-        len = norm(jc.knee_global.right - jc.ankle_global.right);
-        prox_rad = norm(0.5*(markers.RMEP - markers.RLEP));
-        dist_rad = norm(0.5*(markers.RMMAL - markers.RLMAL));
-        segment.mass = participant.mass*0.0465;
-    case 'leg_l'
-        len = norm(jc.knee_global.left - jc.ankle_global.left);
-        prox_rad = norm(0.5*(markers.LMEP - markers.LLEP));
-        dist_rad = norm(0.5*(markers.LMMAL - markers.LLMAL));
-        segment.mass = participant.mass*0.0465;
-    case 'foot_r'
-        len = norm(jc.ankle_global.right - 0.5*(markers.RMTH1 + markers.RMTH5));
-        segment.len = len;
-        prox_rad = norm(0.5*(markers.RMMAL - markers.RLMAL));
-        dist_rad = norm(0.5*(markers.RMTH1 - markers.RMTH5));
-        segment.dist_rad = dist_rad;
-        segment.mass = participant.mass*0.0145;
-    case 'foot_l'
-        len = norm(jc.ankle_global.left - 0.5*(markers.LMTH1 + markers.LMTH5));
-        segment.len = len;
-        prox_rad = norm(0.5*(markers.LMMAL - markers.LLMAL));
-        dist_rad = norm(0.5*(markers.LMTH1 - markers.LMTH5));
-        segment.dist_rad = dist_rad;
-        segment.mass = participant.mass*0.0145;
-    otherwise
-        error(['Invalid segment name: ' segment_name]);
-end
-
-% Find segment centre of mass
-segment.com = FindCom(len, prox_rad, dist_rad);
-segment.tensor = FindTensor(len, prox_rad, dist_rad, segment.mass);
-
-% Correct pelvis centre of mass location
-if isequal(segment_name,'pelvis')
-    segment.com = offset + segment.com;
-end
-end
-
-function com = FindCom(len, prox_rad, dist_rad)
-% FindCom.m
-% -------------------------------------------------------------------------
-% Finds the centre of mass of a conical frustum with given length and
-% radii.
-% -------------------------------------------------------------------------
-% Syntax and description:
-% Centre of mass = FindCom(length, proximal radius, distal radius).
-%
-% The function takes the length, proximal radius, and distal radius of a
-% conical frustum as input and returns a vector that gives the position of
-% the frustum's centre of mass from its proximal end.
-% -------------------------------------------------------------------------
-% Written by Torstein E. Daehlin, August 2021.
-% -------------------------------------------------------------------------
-
-% Find centre of mass of conical frustum
-if dist_rad < prox_rad
-    x = dist_rad/prox_rad;
-    sigma = 1 + x + x^2;
-    z = ((1 + 2*x + 3*x^2)/(4*sigma)) * len;
-else
-    x = prox_rad/dist_rad;
-    sigma = 1 + x + x^2;
-    z = (1 - (1 + 2*x + 3*x^2)/(4*sigma)) * len;
-end
-
-% Assign output
-com = [0, 0, -z];
-end
-
-function tensor = FindTensor(len, prox_rad, dist_rad, mass)
-% FindTensor.m
-% -------------------------------------------------------------------------
-% Finds the inertia tensor about the centre of mass of a segment with the
-% shape of a conical frustum.
-% -------------------------------------------------------------------------
-% Syntax and description:
-% Inertia tensor = FindTensor(length, proximal radius, distal radius, mass)
-%
-% The function takes the length, proximal radius, distal radius, and mass
-% of a conical frustum as input and returns the frustum's inertia tensor
-% computed about its centre of mass.
-% -------------------------------------------------------------------------
-% Written by Torstein E. Daehlin, August, 2021.
-% -------------------------------------------------------------------------
-
-% Find inertia tensor at centre of mass of conical frustum with given mass
-if dist_rad < prox_rad
-    x = dist_rad/prox_rad;
-else
-    x = prox_rad/dist_rad;
-end
-sigma = 1 + x + x^2;
-delta = 3 * mass/(pi*len*(prox_rad^2 + prox_rad*dist_rad + dist_rad^2));
-a1 = 9/(20*pi);
-a2 = (1 + x + x^2 + x^3 + x^4)/sigma^2;
-b1 = 3/80;
-b2 = (1 + 4*x + 10*x^2 + 4*x^3 + x^4)/sigma^2;
-Ixx = a1+a2+mass^2/(delta*len) + b1*b2*mass*len^2;
-Iyy = Ixx;
-Izz = 2*a1*a2*mass^2/(delta*len);
-tensor = [Ixx 0 0; 0 Iyy 0; 0 0 Izz];
-end
 
 function [lcs, jc] = PoseEstimation(dynamic_markers, static_markers, static_lcs, static_jc, nof)
 
@@ -1073,7 +271,7 @@ global_jc = zeros(nof,3);
 for frame = 1:nof
     % Define rotation matrix
     R = [lcs.epx(frame,:)' lcs.epy(frame,:)' lcs.epz(frame,:)'];
-    
+
     % Transform joint centre to global frame
     global_jc(frame,:) = (R*local_jc' + lcs.origin(frame,:)')';
 end
@@ -1220,7 +418,7 @@ epy = zeros(nof,3);
 epz = zeros(nof,3);
 origin = zeros(nof,3);
 
-% Define static positions in local coordinate system 
+% Define static positions in local coordinate system
 if isequal(lower(side),'right')
     neutral = [static_markers.RPCAL', static_markers.RMCAL', static_markers.RLCAL', static_markers.RNT', static_markers.RCU', ...
         static_markers.RMTH1', static_markers.RMTH5'];
@@ -1273,7 +471,7 @@ epy = zeros(nof,3);
 epz = zeros(nof,3);
 origin = zeros(nof,3);
 
-% Define static positions in local coordinate system 
+% Define static positions in local coordinate system
 if isequal(lower(side),'right')
     neutral = [static_markers.RPCAL', static_markers.RMCAL', static_markers.RLCAL', static_markers.RNT', static_markers.RCU'];
     R_static = [static_lcs.rearfoot_r.epx' static_lcs.rearfoot_r.epy' static_lcs.rearfoot_r.epz'];
@@ -1322,7 +520,7 @@ epy = zeros(nof,3);
 epz = zeros(nof,3);
 origin = zeros(nof,3);
 
-% Define static positions in local coordinate system 
+% Define static positions in local coordinate system
 if isequal(lower(side),'right')
     neutral = [static_markers.RNT', static_markers.RCU', static_markers.RMTH1', static_markers.RMTH5'];
     R_static = [static_lcs.forefoot_r.epx' static_lcs.forefoot_r.epy' static_lcs.forefoot_r.epz'];
@@ -1443,11 +641,11 @@ for i = 1:length(segment_names)
         % Construct local coordinate system
         R = [dynamic_lcs.(segment_names{i}).epx(j,:)' dynamic_lcs.(segment_names{i}).epy(j,:)' ...
             dynamic_lcs.(segment_names{i}).epz(j,:)'];
-        
+
         % Transform centre of mass position to global system
         position.(segment_names{i})(j,:) = (R*segments.(segment_names{i}).com' + dynamic_lcs.(segment_names{i}).origin(j,:)')';
     end
-    
+
     % Find velocity and acceleration
     h = time(2) - time(1);
     velocity.(segment_names{i}) = FiniteDiff(position.(segment_names{i}),h,1);
@@ -1510,12 +708,12 @@ if order == 1
     for cdx = 1:col
         % Differentiate first point using one-sided forward two-point scheme
         dydx(1,cdx) = (y(2,cdx) - y(1,cdx))/h;
-        
+
         % Differentiate 2:n-1 points using two-sided two-point scheme
         for idx = 2:(row-1)
             dydx(idx,cdx) = (y(idx+1,cdx) - y(idx-1,cdx))/(2*h);
         end
-        
+
         % Differentiate point n using one-sided backward two-point scheme
         dydx(idx+1,cdx) = (y(idx+1,cdx) - y(idx,cdx))/h;
     end
@@ -1523,12 +721,12 @@ elseif order == 2
     for cdx = 1:col
         % Differentiate first point using one-sided forward three-point scheme
         dydx(1,cdx) = (y(3,cdx) - 2*y(2,cdx) + y(1,cdx))/h^2;
-        
+
         % Differentiate 2:n-1 points using two-sided three-point scheme
         for idx = 2:(row-1)
             dydx(idx,cdx) = (y(idx+1,cdx) - 2*y(idx,cdx) + y(idx-1,cdx))/h^2;
         end
-        
+
         % Differentiate point n using one-sided backward two-point scheme
         dydx(idx+1,cdx) = (y(idx+1,cdx) - 2*y(idx,cdx) + y(idx-1,cdx))/h^2;
     end
@@ -1559,7 +757,7 @@ for i = 1:length(segment_names)
         R = [dynamic_lcs.(segment_names{i}).epx(frame,:)' dynamic_lcs.(segment_names{i}).epy(frame,:)' ...
             dynamic_lcs.(segment_names{i}).epz(frame,:)'];
         [x_angle, y_angle, z_angle] = EulerAngles(R,'zyx','deg');
-        
+
         % Assign output
         segment_angles.(segment_names{i})(frame,:) = [x_angle y_angle z_angle];
     end
@@ -1622,12 +820,12 @@ for i = 1:length(joint_names)
                 otherwise
                     error(['Invalid joint: ' joint_names{i}]);
             end
-            
+
             % Calculate joint angles
             R = (R_prox_static'*R_prox)'*(R_dist_static'*R_dist);
             [x_angle(frame,:), y_angle(frame,:), z_angle(frame,:)] = EulerAngles(R,'xyz','deg');
         end
-        
+
         % Define output
         joint_angles.(joint_names{i}).(side{j}) = [x_angle y_angle z_angle];
     end
@@ -1639,7 +837,7 @@ end
 for i = 1:length(segment_names)
     % Find Euler rates
     euler_rate = FiniteDiff(segment_angles.(segment_names{i}), (time(2)-time(1)), 1);
-    
+
     % Calculate angular velocities
     for frame = 1:nof
         % Define trasformation matrix
@@ -1648,7 +846,7 @@ for i = 1:length(segment_names)
             sind(segment_angles.(segment_names{i})(frame,2)) 0 1];
         angular_velocity.(segment_names{i})(frame,:) = (E*euler_rate(frame,:)')';
     end
-    
+
     % Calculate angular acceleration
     angular_acceleration.(segment_names{i}) = FiniteDiff(angular_velocity.(segment_names{i}), time(2)-time(1), 1);
 end
@@ -1658,7 +856,7 @@ for i = 1:length(joint_names)
     for j = 1:length(side)
         % Find Euler rates
         euler_rate = FiniteDiff(joint_angles.(joint_names{i}).(side{j}), time(2)-time(1), 1);
-        
+
         % Calculate angular velocities
         for frame = 1:nof
             E = [1 0 -sind(joint_angles.(joint_names{i}).(side{j})(frame,2)); ...
@@ -1666,7 +864,7 @@ for i = 1:length(joint_names)
                 0 sind(joint_angles.(joint_names{i}).(side{j})(frame,1)) cosd(joint_angles.(joint_names{i}).(side{j})(frame,1))*cosd(joint_angles.(joint_names{i}).(side{j})(frame,2))];
             angular_velocity.(joint_names{i}).(side{j})(frame,:) = (E*euler_rate(frame,:)')';
         end
-        
+
         % Calculate angular acceleration
         angular_acceleration.(joint_names{i}).(side{j}) = FiniteDiff(angular_velocity.(joint_names{i}).(side{j}), time(2)-time(1), 1);
     end
@@ -1767,7 +965,7 @@ switch seq
         varargout{1} = x_angle;
         varargout{2} = y_angle;
         varargout{3} = z_angle;
-        
+
     case 'xzy'
         x_angle = atan2(R(3,2),R(2,2));
         z_angle = atan2(-R(1,2),sqrt(R(3,2)^2 + R(2,2)^2));
@@ -1775,7 +973,7 @@ switch seq
         varargout{1} = x_angle;
         varargout{2} = y_angle;
         varargout{3} = z_angle;
-        
+
     case 'yxz'
         y_angle = atan2(R(1,3),R(3,3));
         x_angle = atan2(-R(2,3),sqrt(R(1,3)^2 + R(3,3)^2));
@@ -1783,7 +981,7 @@ switch seq
         varargout{1} = x_angle;
         varargout{2} = y_angle;
         varargout{3} = z_angle;
-        
+
     case 'yzx'
         y_angle = atan2(-R(3,1),R(1,1));
         z_angle = atan2(R(2,1),sqrt(R(1,1)^2 + R(3,1)^2));
@@ -1791,7 +989,7 @@ switch seq
         varargout{1} = x_angle;
         varargout{2} = y_angle;
         varargout{3} = z_angle;
-        
+
     case 'zxy'
         z_angle = atan2(-R(1,2),R(2,2));
         x_angle = atan2(R(3,2),sqrt(R(1,2)^2 + R(2,2)^2));
@@ -1799,7 +997,7 @@ switch seq
         varargout{1} = x_angle;
         varargout{2} = y_angle;
         varargout{3} = z_angle;
-        
+
     case 'zyx'
         z_angle = atan2(R(2,1),R(1,1));
         y_angle = atan2(-R(3,1),sqrt(R(1,1)^2 + R(2,1)^2));
@@ -1807,7 +1005,7 @@ switch seq
         varargout{1} = x_angle;
         varargout{2} = y_angle;
         varargout{3} = z_angle;
-        
+
     case 'xyx'
         alpha = atan2(R(2,1),-R(3,1));
         beta = atan2(sqrt(R(1,2)^2 + R(1,3)^2),R(1,1));
@@ -1815,7 +1013,7 @@ switch seq
         varargout{1} = alpha;
         varargout{2} = beta;
         varargout{3} = gamma;
-        
+
     case 'xzx'
         alpha = atan2(R(3,1),R(2,1));
         beta = atan2(sqrt(R(2,1)^2 + R(3,1)^2),R(1,1));
@@ -1823,7 +1021,7 @@ switch seq
         varargout{1} = alpha;
         varargout{2} = beta;
         varargout{3} = gamma;
-        
+
     case 'yxy'
         alpha = atan2(R(1,2),R(3,2));
         beta = atan2(sqrt(R(2,1)^2 + R(2,3)^2),R(2,2));
@@ -1831,7 +1029,7 @@ switch seq
         varargout{1} = alpha;
         varargout{2} = beta;
         varargout{3} = gamma;
-        
+
     case 'yzy'
         alpha = atan2(R(3,2),-R(1,2));
         beta = atan2(sqrt(R(2,1)^2 + R(2,3)^2),R(2,2));
@@ -1839,7 +1037,7 @@ switch seq
         varargout{1} = alpha;
         varargout{2} = beta;
         varargout{3} = gamma;
-        
+
     case 'zxz'
         alpha = atan2(R(1,3),-R(2,3));
         beta = atan2(sqrt(R(3,1)^2 + R(3,2)^2),R(3,3));
@@ -1847,7 +1045,7 @@ switch seq
         varargout{1} = alpha;
         varargout{2} = beta;
         varargout{3} = gamma;
-        
+
     case 'zyz'
         alpha = atan2(R(2,3),R(1,3));
         beta = atan2(sqrt(R(1,3)^2 + R(2,3)^2),R(3,3));
@@ -1855,7 +1053,7 @@ switch seq
         varargout{1} = alpha;
         varargout{2} = beta;
         varargout{3} = gamma;
-        
+
     otherwise
         error('Error using EulerAngles! Invalid input argument: %s',varargin{1});
 end
@@ -1883,43 +1081,43 @@ for frame = 1:nof
         for side = 1:length(sides)
             % Find names of segments located distal to the joint
             segment_names = FindSegmentNames([joint_names{i} '_' sides{side}]);
-            
+
             % Preallocate
             tau_I = zeros(length(segment_names),3);
             tau = zeros(length(segment_names),3);
-            
+
             % Loop over segments distal to the joint
             for j = 1:length(segment_names)
-                
+
                 % Calculate net force acting on each segment
                 F = segments.(segment_names{j}).mass * (acceleration.(segment_names{j})(frame,:) - g);
-                
+
                 % Transform angular velocity and accelereation vectors to the
                 % segment coordinate system
                 R = [dynamic_lcs.(segment_names{j}).epx(frame,:)' dynamic_lcs.(segment_names{j}).epy(frame,:)' ...
                     dynamic_lcs.(segment_names{j}).epz(frame,:)'];
                 omega = (R'*deg2rad(angular_velocity.(segment_names{j})(frame,:))')';
                 alpha = (R'*deg2rad(angular_acceleration.(segment_names{j})(frame,:))')';
-                
+
                 % Calculate inretial moment of the segment and transform it
                 % back to the global coordiante system
                 tau_I(j,:) = (R * (segments.(segment_names{j}).tensor*alpha' + ...
                     cross(omega',(segments.(segment_names{j}).tensor*omega'))))';
-                
+
                 % Find moment arm of centre of mass
                 r = position.(segment_names{j})(frame,:) - jc.(joint_names{i}).(sides{side})(frame,:);
-                
+
                 % Calculate segment moment
                 tau(j,:) = cross(r,F);
             end
-            
+
             % Find moment arm of ground reaction force
             r_grf = grf.(sides{side}).cop(frame,:) - jc.(joint_names{i}).(sides{side})(frame,:);
-            
+
             % Calculate net joint moment
             njm_global = sum((tau_I + tau),1) - ...
                 grf.(sides{side}).free_moment(frame,:) - cross(r_grf,grf.(sides{side}).force(frame,:));
-            
+
             % Transform net joint moment into the coordiante system of the
             % distal segment
             R = [dynamic_lcs.(segment_names{1}).epx(frame,:)' dynamic_lcs.(segment_names{1}).epy(frame,:)' ...
@@ -1940,13 +1138,13 @@ for joint = 1:length(joint_names)
     for side = 1:length(side_names)
         % Find segment names (1st element of the vector returned is the segment distal to the joint)
         segment_names = FindSegmentNames([joint_names{joint} '_' side_names{side}]);
-        
+
         for frame = 1:nof
             % Transform joint angular velocity into local coordinate system of the distal segment (njm is already expressed here)
             R = [dynamic_lcs.(segment_names{1}).epx(frame,:)' dynamic_lcs.(segment_names{1}).epy(frame,:)' ...
                 dynamic_lcs.(segment_names{1}).epz(frame,:)'];
             omega = (R'*deg2rad(angular_velocity.(joint_names{joint}).(side_names{side})(frame,:))')';
-            
+
             % Calculate instantaneous power
             joint_power.(joint_names{joint}).(side_names{side})(frame,:) =  ...
                 njm.(joint_names{joint}).(side_names{side})(frame,:).*omega;
@@ -1968,19 +1166,19 @@ pause(2);
 
 % Loop over frames nad animate motion
 for frame = 1:nof
-    
+
     % Plot global coordinate system
     global_ax = eye(3);
     for j = 1:3
         plot3([0 global_ax(1,j)*axis_scale*2],[0 global_ax(2,j)*axis_scale*2],[0 global_ax(3,j)*axis_scale*2],line_colors{j});
         hold on;
     end
-    
+
     % Label global coordinate axes
     text(0.21,0,0,'X','Color','r','FontWeight','bold');
     text(0,0.21,0,'Y','Color','g','FontWeight','bold');
     text(0,0,0.21,'Z','Color','b','FontWeight','bold');
-    
+
     % Plot markers
     marker_names = fieldnames(markers);
     for i = 1:length(marker_names)
@@ -1992,12 +1190,12 @@ for frame = 1:nof
         else
             marker_color = '#D95319';
         end
-        
+
         % Plot marker
         plot3(markers.(marker_names{i})(frame,1),markers.(marker_names{i})(frame,2),markers.(marker_names{i})(frame,3), ...
             'o','MarkerEdgeColor',marker_color,'MarkerFaceColor',marker_color);
     end
-    
+
     % Plot local coordinate systems
     lcs_names = fieldnames(lcs);
     axis_names = {'epx','epy','epz'};
@@ -2009,7 +1207,7 @@ for frame = 1:nof
                 line_colors{j});
         end
     end
-    
+
     % Plot joint centres
     jc_names = {'hip','knee','ankle'};
     sides = {'right','left'};
@@ -2019,7 +1217,7 @@ for frame = 1:nof
                 'o','MarkerEdgeColor','#A2142F','MarkerFaceColor','#A2142F','MarkerSize',10);
         end
     end
-    
+
     % Plot force platforms and ground reaction force
     for j = 1:length(sides)
         for i = 1:3
@@ -2034,7 +1232,7 @@ for frame = 1:nof
             [grf.(sides{j}).cop(frame,2) grf.(sides{j}).cop(frame,2)+grf.(sides{j}).force(frame,2)/1000], ...
             [grf.(sides{j}).cop(frame,3) grf.(sides{j}).cop(frame,3)+grf.(sides{j}).force(frame,3)/1000],'r-');
     end
-    
+
     % Format axes
     anchor = 0.5*(markers.RCREST(end,:) + markers.LCREST(end,:));
     ax = gca;
@@ -2047,7 +1245,7 @@ for frame = 1:nof
     ax.XLabel.String = 'Position (m)';
     ax.YLabel.String = 'Position (m)';
     ax.ZLabel.String = 'Position (m)';
-    
+
     pause(0.005);
     if ~isequal(frame,nof)
         clf(fig);
@@ -2078,14 +1276,14 @@ end
 function events = FindEvents(kinematics, kinetics, jump_type)
 
 
-if ismember(jump_type,{'AJL','AJR'})  
-    
+if ismember(jump_type,{'AJL','AJR'})
+
     % Define parameters
     side_names = {'right','left'};
     threshold_grf = 20; % N
     threshold_knee_vel = 30;
     dly = 20;
-    
+
     % Loop over sides and extract events
     for side = 1:length(side_names)
         idx(1) = find(kinetics.grf.(side_names{side}).force(1:end,3) > threshold_grf, 1);
@@ -2098,16 +1296,16 @@ if ismember(jump_type,{'AJL','AJR'})
         events.(side_names{side}).foot_ic = idx(1)+dly+idx(2)+idx(3);
         events.(side_names{side}).max_knee_flex = idx(1)+dly+idx(2)+idx(3)+idx(4);
     end
-    
+
 elseif isequal(jump_type,'VJ')
-    
+
     % Define parameters
     side_names = {'right','left'};
     threshold_grf = 10; % N
     threshold_knee_vel = 30;
     threshold_pelvis_vel = -0.1;
     dly = 60;
-    
+
     % Loop over sides and extract events
     for side = 1:length(side_names)
         idx(1) = find(kinematics.velocity.pelvis(:,3) < threshold_pelvis_vel, 1);
@@ -2119,7 +1317,7 @@ elseif isequal(jump_type,'VJ')
         events.(side_names{side}).foot_off = idx(1)+dly+idx(2);
         events.(side_names{side}).foot_ic = idx(1)+dly+idx(2)+idx(3);
         events.(side_names{side}).max_knee_flex = idx(1)+dly+idx(2)+idx(3)+idx(4);
-        
+
     end
 else
     error(['Invalid jump type: ' jump_type]);
@@ -2136,10 +1334,10 @@ height_max = max(kinematics.position.pelvis(:,3));
 jump_height = height_max - height_0(3,1);
 
 if jump_height > old_jump_height
-    
+
     % calculate time step
     h = time(2)-time(1);
-    
+
     % Find net joint work and average net joint moment
     joint_names = fieldnames(kinetics.joint_power);
     side_names = fieldnames(kinetics.joint_power.(joint_names{1}));
@@ -2154,7 +1352,7 @@ if jump_height > old_jump_height
                 kinematics.joint_angles.(joint_names{joint}).(side_names{side})(events.(side_names{side}).foot_off,1) - ...
                 kinematics.joint_angles.(joint_names{joint}).(side_names{side})(events.(side_names{side}).start,1);
             arch_deformation.(side_names{side}).propulsion = max(kinematics.joint_angles.midfoot.(side_names{side})(events.(side_names{side}).start:events.(side_names{side}).foot_off,1));
-            
+
             % Extract landing phase variables of interest
             work.(joint_names{joint}).(side_names{side}).landing = ...
                 trapz(h,kinetics.joint_power.(joint_names{joint}).(side_names{side})(events.(side_names{side}).foot_ic:events.(side_names{side}).max_knee_flex,1));
@@ -2165,41 +1363,41 @@ if jump_height > old_jump_height
                 kinematics.joint_angles.(joint_names{joint}).(side_names{side})(events.(side_names{side}).foot_ic,1);
             arch_deformation.(side_names{side}).landing = max(kinematics.joint_angles.midfoot.(side_names{side})(events.(side_names{side}).foot_ic:events.(side_names{side}).max_knee_flex,1));
 
-            
+
             % Define start time
             if events.right.start < events.left.start
                 start_frame = events.right.start;
             else
                 start_frame = events.left.start;
             end
-            
+
             % Define end time
             if events.right.max_knee_flex > events.left.max_knee_flex
                 end_frame =  events.right.max_knee_flex;
             else
                 end_frame =  events.left.max_knee_flex;
             end
-            
+
             % Extract time series
             time_series.moment.(joint_names{joint}).(side_names{side}) = kinetics.njm.(joint_names{joint}).(side_names{side})(start_frame:end_frame,:);
             time_series.power.(joint_names{joint}).(side_names{side}) = kinetics.joint_power.(joint_names{joint}).(side_names{side})(start_frame:end_frame,:);
             time_series.angles.(joint_names{joint}).(side_names{side}) = kinematics.joint_angles.(joint_names{joint}).(side_names{side})(start_frame:end_frame,:);
-            
+
         end
         % Extract centre of pressure location
         pressure.(side_names{side}).propulsion = mean(kinetics.relative_cop.(side_names{side})(events.(side_names{side}).start:events.(side_names{side}).foot_off,:));
         pressure.(side_names{side}).landing = mean(kinetics.relative_cop.(side_names{side})(events.(side_names{side}).foot_ic:events.(side_names{side}).max_knee_flex,:));
-        
+
         % Extract ground reaction force time series
         time_series.grf.(side_names{side}) = kinetics.grf.(side_names{side}).force;
     end
-    
+
     % Plot events for verification
     PlotEvents(kinetics, kinematics, events, time);
-    
+
     % Assign output
     output = struct('jump_height',jump_height,'work',work,'moment',moment,'excursion',excursion, ...
-            'arch_deformation',arch_deformation,'pressure',pressure,'time_series',time_series);
+        'arch_deformation',arch_deformation,'pressure',pressure,'time_series',time_series);
 else
     output = old_output;
 end
@@ -2222,18 +1420,18 @@ for s = 1:length(sides)
     plot(time,kinetics.grf.(sides{s}).force(:,3),line_specs{s},'Linewidth',1.5);
     hold on;
     ax = gca;
-    
+
     for e = 1:length(event_names)
         plot([time(events.(sides{s}).(event_names{e})) time(events.(sides{s}).(event_names{e}))], ...
             ax.YLim,'k--');
         text(time(events.(sides{s}).(event_names{e})),ax.YLim(2)-50,labels{e},'HorizontalAlignment','center');
     end
-    
+
     ylabel('Force (N)');
     xlabel('Time (s)');
     xlim([0 time(end)]);
     title(['Vertical ground reaction force ' sides{s}]);
-    
+
     % plot knee angle in subplot 2
     subplot(2,2,2+s);
     plot(time,kinematics.joint_angles.knee.(sides{s})(:,1),line_specs{s},'Linewidth',1.5);
@@ -2260,17 +1458,17 @@ sides = fieldnames(grf);
 for side = 1:length(sides)
     origo = 0.5*(dynamic_markers.([upper(sides{side}(1)) 'MTH1']) + dynamic_markers.([upper(sides{side}(1)) 'MTH5']));
     vec = grf.(sides{side}).cop - origo;
-    
+
     for frame = 1:nof
         if isequal(lower(sides{side}),'left')
             relative_cop.(sides{side})(frame,1) = (dot(vec(frame,:),[dynamic_lcs.(['foot_' sides{side}(1)]).epx(frame,1:2) 0])/ ...
                 segments.(['foot_' sides{side}(1)]).dist_rad) * -100;
         else
             relative_cop.(sides{side})(frame,1) = (dot(vec(frame,:),[dynamic_lcs.(['foot_' sides{side}(1)]).epx(frame,1:2) 0])/ ...
-            segments.(['foot_' sides{side}(1)]).dist_rad) * 100;
+                segments.(['foot_' sides{side}(1)]).dist_rad) * 100;
         end
         relative_cop.(sides{side})(frame,2) = (dot(vec(frame,:),[dynamic_lcs.(['foot_' sides{side}(1)]).epz(frame,1:2) 0])/ ...
-        segments.(['foot_' sides{side}(1)]).len) * 100;
+            segments.(['foot_' sides{side}(1)]).len) * 100;
     end
 end
 

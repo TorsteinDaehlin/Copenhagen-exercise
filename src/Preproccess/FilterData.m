@@ -45,8 +45,10 @@ elseif isequal(lower(data_type),'force')
     var_names = {'force','moment','cop','free_moment'};
 
     % Filter raw data
-    for j = 1:length(var_names)
-        filtered_data.(var_names{j}) = filtfilt(B, A, raw_data.(var_names{j}));
+    for i = 1:length(var_names)
+        idx = isnan(raw_data.(var_names{i}));
+        raw_data.(var_names{i})(idx) = 0;
+        filtered_data.(var_names{i}) = filtfilt(B, A, raw_data.(var_names{i}));
     end
 else
     % Print error message

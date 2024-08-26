@@ -25,35 +25,36 @@ for i = 1:length(force)
     force(i).origin = mean(force(i).fp_location);
 
     % Define force platform coordinate system
-    temp_x = 0.5*(grf.(side{i}).corners(1,:) + grf.(side{i}).corners(4,:)) - ...
-        0.5*(grf.(side{i}).corners(2,:) + grf.(side{i}).corners(3,:));
-    epx = temp_x/norm(temp_x);
-    temp_y = 0.5*(grf.(side{i}).corners(1,:) + grf.(side{i}).corners(2,:)) - ...
-        0.5*(grf.(side{i}).corners(3,:) + grf.(side{i}).corners(4,:));
+    temp_x = 0.5 * (force(i).fp_location(1,:) + force(i).fp_location(4,:)) - ...
+        0.5 * (force(i).fp_location(2,:) + force(i).fp_location(3,:));
+    epx = temp_x / norm(temp_x);
+    temp_y = 0.5 * (force(i).fp_location(1,:) + force(i).fp_location(2,:)) - ...
+        0.5 * (force(i).fp_location(3,:) + force(i).fp_location(4,:));
     temp_z = cross(epx,temp_y);
-    epz = temp_z/norm(temp_z);
+    epz = temp_z / norm(temp_z);
     epy = cross(epz,epx);
-    R.(side{i}) = [epx' epy' epz'];
+    R = [epx' epy' epz'];
 
     % Calculate free moment
-    grf.(side{i}).free_moment = zeros(nof,3);
-    grf.(side{i}).free_moment(:,3) = grf.(side{i}).moment(:,3) - grf.(side{i}).cop(:,2).*grf.(side{i}).force(:,1) ...
-        + grf.(side{i}).cop(:,1).*grf.(side{i}).force(:,2);
+    force(i).free_moment = zeros(nof * force(i).meta.SamplingFactor,3);
+    force(i).free_moment(:,3) = force(i).moment(:,3) - force(i).cop(:,2) .* force(i).force(:,1) ...
+        + force(i).cop(:,1) .* force(i).force(:,2);
 
     % Transform quantities to the global coordinate system
-    grf.(side{i}).force = ((R.(side{i})*grf.(side{i}).force')*-1)';
-    grf.(side{i}).moment = ((R.(side{i})*grf.(side{i}).moment')*-1)';
-    grf.(side{i}).free_moment = ((R.(side{i})*grf.(side{i}).free_moment')*-1)';
-    grf.(side{i}).cop = ((R.(side{i})*grf.(side{i}).cop') + grf.(side{i}).origin')';
+    force(i).force = ((R * force(i).force') * -1)';
+    force(i).moment = ((R * force(i).moment') * -1)';
+    force(i).free_moment = ((R * force(i).free_moment') * -1)';
+    force(i).cop = ((R * force(i).cop') + force(i).origin')';
 
     % Filter force data
-    filter_parameters.fs = data_struct.Force(i).Frequency;
-    grf_filt = FilterData(grf.(side{i}), filter_parameters, 'force');
+    filter_parameters.fs = force(i).meta.fs;
+    grf_filt = FilterData(force(i), filter_parameters, 'force');
 
     % Downsample force
-    grf.(side{i}).force = downsample(grf_filt.force,5);
-    grf.(side{i}).moment = downsample(grf_filt.moment,5);
-    grf.(side{i}).free_moment = downsample(grf_filt.free_moment,5);
-    grf.(side{i}).cop = downsample(grf_filt.cop,5);
+    ds_factor = force(i).meta.SamplingFactor;
+    grf(i).force = downsample(grf_filt.force, ds_factor);
+    grf(i).moment = downsample(grf_filt.moment, ds_factor);
+    grf(i).free_moment = downsample(grf_filt.free_moment, ds_factor);
+    grf(i).cop = downsample(grf_filt.cop, ds_factor);
 end
 end

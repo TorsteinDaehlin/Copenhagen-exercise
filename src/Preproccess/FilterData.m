@@ -1,21 +1,44 @@
 function filtered_data = FilterData(raw_data, filter_parameters, data_type)
 
-if isequal(lower(data_type),'markers')
-    % Construct filter coefficients for butterworth filter
-    [B, A] = butter(filter_parameters.order/2, filter_parameters.fc/(filter_parameters.fs/2), filter_parameters.type);
+% Construct filter coefficients for butterworth filter
+switch filter_parameters.type
+    case 'Butterworth'
+        [B, A] = butter(filter_parameters.order/2, ...
+            filter_parameters.fc/(filter_parameters.fs/2), ...
+            'low');
 
+    case 'Chebyshev I'
+        [B, A] = cheby1(filter_parameters.order/2, ...
+            filter_parameters.fc/(filter_parameters.fs/2), ...
+            'low');
+
+    case 'Chebyshev II'
+        [B, A] = cheby2(filter_parameters.order/2, ...
+            filter_parameters.fc/(filter_parameters.fs/2), ...
+            'low');
+
+    case 'Ellipse'
+        [B, A] = ellip(filter_parameters.order/2, ...
+            filter_parameters.fc/(filter_parameters.fs/2), ...
+            'low');
+
+end    
+    
+
+if isequal(lower(data_type),'markers')
+    
     % Get field names in raw data structure
     label_names = fieldnames(raw_data);
     label_names = label_names(~strcmp(label_names, {'meta'}));
 
     % Filter raw data
     for i = 1:length(label_names)
+        idx = isnan(raw_data.(label_names{i}));
+        raw_data.(label_names{i})(idx) = 0;
         filtered_data.(label_names{i}) = filtfilt(B, A, raw_data.(label_names{i}));
     end
 
 elseif isequal(lower(data_type),'force')
-    % Construct filter coefficients for butterworth filter
-    [B, A] = butter(filter_parameters.order/2, filter_parameters.fc/(filter_parameters.fs/2), filter_parameters.type);
 
     % Get field names in raw data structure and define field names of
     % structures that need filtering

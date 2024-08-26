@@ -1,4 +1,4 @@
-function [static, dynamic] = PreprocessMOCAP(subj, marker_reg)
+function [static, dynamic] = PreprocessMOCAP(subj, marker_reg, flt)
 
 % Parse static file(s)
 for i = 1:length(subj.static_name)
@@ -15,7 +15,7 @@ for i = 1:length(subj.static_name)
 end
 
 % Parse dynamic files
-for i = length(subj.move_name)
+for i = 1:length(subj.move_name)
     % Load dynamic file
     raw_dynamic(i) = load(fullfile(subj.data_path, subj.move_name{i}));
 
@@ -74,7 +74,7 @@ if nargout > 1
     end
     
     % Assign force data to varargout
-    varargout = force;
+    varargout = {force};
 end
 
 end

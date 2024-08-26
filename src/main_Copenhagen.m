@@ -112,7 +112,7 @@ for s = 1:length(subj_dir)
     addpath('.\InverseDynamics\');
 
     % Preprocess input data
-    [] = PreprocessMOCAP(subj, marker_reg, flt);
+    [static, dynamic] = PreprocessMOCAP(subj, marker_reg, flt);
 
     % Transform force to top of stand
 

@@ -115,6 +115,7 @@ for s = 1:length(subj_dir)
     [static, dynamic] = PreprocessMOCAP(subj, marker_reg, flt);
 
     % Transform force to top of stand
+    dynamic = TransformToStand(dynamic);
 
     % Run inverse dynamics procedure
 

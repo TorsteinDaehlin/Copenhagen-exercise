@@ -56,5 +56,6 @@ for i = 1:length(force)
     grf(i).moment = downsample(grf_filt.moment, ds_factor);
     grf(i).free_moment = downsample(grf_filt.free_moment, ds_factor);
     grf(i).cop = downsample(grf_filt.cop, ds_factor);
+    grf(i).origin = force(i).origin;
 end
 end

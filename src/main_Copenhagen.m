@@ -114,7 +114,8 @@ for s = 1:length(subj_dir)
     % Preprocess input data
     [static, dynamic] = PreprocessMOCAP(subj, marker_reg, flt);
 
-    % Transform force to top of stand
+    % Transform force to top of stand (the easiest way to achieve this may be to simply add this as a rigid body
+    % to the model. Since there is not angular velocity of the stand, point of force application should be possible to find)
     dynamic = TransformToStand(dynamic);
 
     % Run inverse dynamics procedure
@@ -218,7 +219,7 @@ for s = 1:length(subj_dir)
     save(fullfile(participant_path,'Results',[participant.name '_' visit_name '.mat']),'output');
 end
 end
-end
+
 
 
 
@@ -1070,7 +1071,7 @@ end
 function njm = CalculatejointMoments(segments, dynamic_lcs, jc, grf, angular_velocity, angular_acceleration, acceleration, position, nof)
 
 % Define gravity vector
-g = [0 0 -9.806];
+g = [0 0 -9.81];
 
 % Extract segment and joint names
 sides = {'right','left'};

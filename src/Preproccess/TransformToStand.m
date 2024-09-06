@@ -6,9 +6,14 @@ m_box = 2.6; % kg
 g = -9.81; % m/s^2
 w_box = [0; 0; m_box * g];
 
-
 for i = 1:length(dynamic)
-    for j = 1:size(dynamic(i).force(2).force, 1)
+    % Preallocate loop variables for speed
+    nof = size(dynamic(i).force(2).force, 1);
+    GRF = zeros(nof, 3);
+    moment = zeros(nof, 3);
+    cop = zeros(nof, 3);
+
+    for j = 1:nof
 
         % Define stand coordinate system
         origin = 0.5 * (dynamic(i).markers.external_cluster1(j,:) ...
@@ -28,7 +33,11 @@ for i = 1:length(dynamic)
 
         % Calculate force and moment acting at the top of the stand
         F = (dynamic(i).force(2).force(j,:) + w_box') .* -1;
-        tau = dynamic(i).force(2).moment(j,:) .* -1;
+
+        r_com = [origin(1:2) origin(3) / 2];
+        r_cop = dynamic(i).force(2).cop(j,:) - origin;
+        tau = (cross(r_com, w_box) + ...
+            cross(r_cop, dynamic(i).force(2).force(j,:))) .* -1;
 
         % Transform force and moment to stand coordinate system      
         F = (R' * F')';
@@ -42,9 +51,16 @@ for i = 1:length(dynamic)
         % Transform forces, moment, and point of application back to global
         % coordinate system
         GRF(j,:) = (R * F')' .* -1;
-        Moment(j,:) = (R * tau')' .* -1;
+        moment(j,:) = (R * tau')' .* -1;
         cop(j,:) = (R * p')' + origin;
         
     end
+
+    % Replace force in dynamic
+    dynamic(i).force(2).force = GRF;
+    dynamic(i).force(2).moment = moment;
+    dynamic(i).force(2).cop = cop;
+
+    clear GRF Moment cop;
 end
 end

@@ -1,4 +1,4 @@
-function grf = ForceProcess(force, filter_parameters)
+function grf = ForceProcess(force, meta, filter_parameters)
 
 %{
 Forces acting on the force platform (i.e. the action forces, not the ground
@@ -17,7 +17,7 @@ X              /_ _ _ _ _ _ _ _ _ _ _ _/
 %}
 
 % Set parameters
-nof = force(1).meta.nof;
+nof = meta.nof * meta.SamplingFactor;
 
 % Loop over force platforms
 for i = 1:length(force)
@@ -36,7 +36,7 @@ for i = 1:length(force)
     R = [epx' epy' epz'];
 
     % Calculate free moment
-    force(i).free_moment = zeros(nof * force(i).meta.SamplingFactor,3);
+    force(i).free_moment = zeros(nof, 3);
     force(i).free_moment(:,3) = force(i).moment(:,3) - force(i).cop(:,2) .* force(i).force(:,1) ...
         + force(i).cop(:,1) .* force(i).force(:,2);
 
@@ -47,11 +47,11 @@ for i = 1:length(force)
     force(i).cop = ((R * force(i).cop') + force(i).origin')';
 
     % Filter force data
-    filter_parameters.fs = force(i).meta.fs;
+    filter_parameters.fs = meta.fs * meta.SamplingFactor;
     grf_filt = FilterData(force(i), filter_parameters, 'force');
 
     % Downsample force
-    ds_factor = force(i).meta.SamplingFactor;
+    ds_factor = meta.SamplingFactor;
     grf(i).force = downsample(grf_filt.force, ds_factor);
     grf(i).moment = downsample(grf_filt.moment, ds_factor);
     grf(i).free_moment = downsample(grf_filt.free_moment, ds_factor);

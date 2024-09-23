@@ -10,9 +10,9 @@ b = [7.3 -9.9 -10.9]./1000; % divided by 1000 to convert to meters
 
 % Variables
 for i = 1:nof
-    pelvis_width = norm(markers.RASIS(i,:) - markers.LASIS(i,:));
-    pelvis_depth = norm(0.5*(markers.RASIS(i,:) + markers.LASIS(i,:)) ...
-        - 0.5*(markers.RPSIS(i,:) + markers.LPSIS(i,:)));
+    pelvis_width = norm(markers.pelvis_RASIS(i,:) - markers.pelvis_LASIS(i,:));
+    pelvis_depth = norm(0.5*(markers.pelvis_RASIS(i,:) + markers.pelvis_LASIS(i,:)) ...
+        - 0.5*(markers.pelvis_RPSIS(i,:) + markers.pelvis_LPSIS(i,:)));
 
     % Solve regression equations
     x_hat = a(1)*pelvis_width + b(1);

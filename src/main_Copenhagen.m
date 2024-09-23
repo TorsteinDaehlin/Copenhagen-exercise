@@ -127,7 +127,14 @@ for s = 1:length(subj_dir)
         [static_lcs, static_jc, segments] = ...
             ProcessStatic(static(i), meta.static(i), subj);
 
+        % Loop over dynamic trials matched to current static
+        for j = 1:length(static.match_to_move)
+            % Perform pose estimation and calculate model kinematics
+            
+            % Determine which external forces are applied to which segments
 
+            % Calculate NJMs using inverse dynamics
+        end
     end
     % 
     

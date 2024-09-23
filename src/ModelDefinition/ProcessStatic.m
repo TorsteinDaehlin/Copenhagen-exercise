@@ -1,30 +1,25 @@
-function [static_markers, static_lcs, static_jc, segments] = ProcessStatic(data_struct, filter_parameters, participant, visit_name)
+function [static_lcs, static_jc, segments] = ProcessStatic(static, meta, subj)
 
 % Get temporal characteristics
-nof = data_struct.Frames;
-frame_rate = data_struct.FrameRate;
-
-% Extract marker data
-static_markers = DefineMarkers(data_struct);
-
-% Filter marker trajectories
-filter_parameters.fs = frame_rate;
-static_markers = FilterData(static_markers, filter_parameters, 'markers');
+nof = meta.nof;
+frame_rate = meta.fs;
 
 % Reduce static markers and define anatomical coordinate systems
-marker_names = fieldnames(static_markers);
+markers = static.markers;
+marker_names = fieldnames(markers);
 for i = 1:length(marker_names)
-    static_markers.(marker_names{i}) = mean(static_markers.(marker_names{i})((nof/2)-(frame_rate/2):(nof/2)+(frame_rate/2),:));
+    markers.(marker_names{i}) = mean(markers.(marker_names{i})((nof/2)-(frame_rate/2):(nof/2)+(frame_rate/2),:));
 end
 
 % Define local coordinate systems
-[static_lcs, static_jc] = DefineLocalSystems(static_markers);
+[static_lcs, static_jc] = DefineLocalSystems(markers);
 
 % Define segment parameters
-segments = DefineSegments(static_markers, static_jc, participant);
+segment_names = fieldnames(static_lcs);
+segments = DefineSegments(markers, static_lcs, static_jc, subj, segment_names);
 
 % Plot static trial
-PlotStatic(static_markers, static_lcs, static_jc, segments, participant, visit_name);
+PlotStatic(markers, static_lcs, static_jc, segments, subj);
 
 end
 
@@ -33,14 +28,14 @@ end
 
 % Plot static produces a plot of the static trial to assist the user in
 % assessing whether the model is created correctly.
-function PlotStatic(markers, lcs, jc, segments, participant, visit_name)
+function PlotStatic(markers, lcs, jc, segments, subj)
 
 % Plot parameters
 axis_scale = 0.1;
 line_colors = {'r-','g-','b-'};
 
 % Define figure
-fig = figure('Name',['Static trial - ' visit_name]);
+fig = figure('Name',['Static trial - ' subj.id]);
 fig.WindowState = 'maximized';
 
 % Plot global coordinate system
@@ -59,9 +54,9 @@ text(0,0,0.21,'Z','Color','b','FontWeight','bold');
 marker_names = fieldnames(markers);
 for i = 1:length(marker_names)
     % Select marker color
-    if marker_names{i}(1) == 'R'
+    if contains(marker_names{i}, {'_r_'})
         marker_color = '#77AC30';
-    elseif marker_names{i}(1) == 'L'
+    elseif contains(marker_names{i}, {'_l_'})
         marker_color = '#0072BD';
     else
         marker_color = '#D95319';
@@ -95,7 +90,7 @@ end
 
 % Plot joint centres
 jc_names = {'hip_global','knee_global','ankle_global'};
-sides = {'right','left'};
+sides = {'right'};
 for i = 1:length(jc_names)
     for j = 1:length(sides)
         plot3(jc.(jc_names{i}).(sides{j})(1),jc.(jc_names{i}).(sides{j})(2),jc.(jc_names{i}).(sides{j})(3), ...
@@ -104,7 +99,7 @@ for i = 1:length(jc_names)
 end
 
 % Format axes
-anchor = 0.5*(markers.RCREST + markers.LCREST);
+anchor = lcs.pelvis.origin;
 ax = gca;
 ax.Color = 'k';
 ax.XLim = [anchor(1)-0.75 anchor(1)+0.75];
@@ -120,11 +115,14 @@ ax.ZLabel.String = 'Position (m)';
 x_pos = ax.XLim(1)+0.1;
 y_pos = ax.YLim(end)-0.1;
 z_pos = ax.ZLim(end)-0.1;
-text(x_pos,y_pos,z_pos,participant.name,'Color','w','HorizontalAlignment','center','FontWeight','bold');
-text(x_pos,y_pos,z_pos-0.05,participant.group,'Color','w','HorizontalAlignment','center');
-text(x_pos,y_pos,z_pos-0.10,[num2str(participant.age,2) ' yrs.'],'Color','w','HorizontalAlignment','center');
-text(x_pos,y_pos,z_pos-0.15,[num2str(participant.height,3) ' m'],'Color','w','HorizontalAlignment','center');
-text(x_pos,y_pos,z_pos-0.20,[num2str(participant.mass,3) ' kg'],'Color','w','HorizontalAlignment','center');
-text(x_pos,y_pos,z_pos-0.25,participant.level,'Color','w','HorizontalAlignment','center');
+text(x_pos,y_pos,z_pos,subj.id,'Color','w','HorizontalAlignment','center','FontWeight','bold');
+text(x_pos,y_pos,z_pos-0.05,[num2str(subj.height,3) ' m'],'Color','w','HorizontalAlignment','center');
+text(x_pos,y_pos,z_pos-0.10,[num2str(subj.mass,3) ' kg'],'Color','w','HorizontalAlignment','center');
+
+% TODO: SAVE FIGURE AS DATA CHECK
+
+% Display figure before closing
+pause(5);
+close(fig);
 
 end

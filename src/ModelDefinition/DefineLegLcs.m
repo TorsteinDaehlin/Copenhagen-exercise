@@ -7,13 +7,13 @@ epz = zeros(nof,3);
 
 % Define temporary vectors
 if isequal(lower(side),'right')
-    temp1 = 0.5*(markers.RMEP + markers.RLEP) - 0.5*(markers.RMMAL + markers.RLMAL);
-    temp2 = markers.RLMAL - markers.RMMAL;
-    origin = 0.5*(markers.RMEP + markers.RLEP);
+    temp1 = 0.5*(markers.thigh_r_dist_med + markers.thigh_r_dist_lat) - 0.5*(markers.leg_r_dist_med + markers.leg_r_dist_lat);
+    temp2 = markers.leg_r_dist_lat - markers.leg_r_dist_med;
+    origin = 0.5*(markers.thigh_r_dist_med + markers.thigh_r_dist_lat);
 elseif isequal(lower(side),'left')
-    temp1 = 0.5*(markers.LMEP + markers.LLEP) - 0.5*(markers.LLMAL + markers.LMMAL);
-    temp2 = markers.LMMAL - markers.LLMAL;
-    origin = 0.5*(markers.LMEP + markers.LLEP);
+    temp1 = 0.5*(markers.thigh_l_dist_med + markers.thigh_l_dist_lat) - 0.5*(markers.leg_l_dist_med + markers.leg_l_dist_lat);
+    temp2 = markers.leg_l_dist_med - markers.leg_l_dist_lat;
+    origin = 0.5*(markers.thigh_l_dist_med + markers.thigh_l_dist_lat);
 else
     error(['Invalid side: ' side]);
 end
@@ -36,12 +36,12 @@ for i = 1:nof
 end
 
 if isequal(lower(side),'right')
-    jc.ankle_global.(side) = 0.5*(markers.RMMAL + markers.RLMAL);
+    jc.ankle_global.(side) = 0.5*(markers.leg_r_dist_med + markers.leg_r_dist_lat);
 elseif isequal(lower(side),'left')
-    jc.ankle_global.(side) = 0.5*(markers.LMMAL + markers.LLMAL);
+    jc.ankle_global.(side) = 0.5*(markers.leg_l_dist_med + markers.leg_l_dist_lat);
 end
 
-% Transform knee centres to local system
+% Transform ankle centres to local system
 R = [epx', epy', epz'];
 jc.ankle.(side) = (jc.ankle_global.(side) - origin)*R;
 

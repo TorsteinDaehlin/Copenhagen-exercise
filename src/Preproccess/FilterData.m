@@ -29,8 +29,7 @@ if isequal(lower(data_type),'markers')
     
     % Get field names in raw data structure
     label_names = fieldnames(raw_data);
-    label_names = label_names(~strcmp(label_names, {'meta'}));
-
+    
     % Filter raw data
     for i = 1:length(label_names)
         idx = isnan(raw_data.(label_names{i}));

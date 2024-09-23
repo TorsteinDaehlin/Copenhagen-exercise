@@ -105,78 +105,37 @@ for s = 1:length(subj_dir)
     subj.static_name = {motion_files(static_idx).name};
     subj.move_name = {motion_files(~static_idx).name};
 
-    % Start inverse dynamics subroutine
-    % =================================
+    % Preprocess data
+    % ===============
     % Add path to dependencies
     addpath('.\Preproccess\');
+    addpath('.\ModelDefinition\');
     addpath('.\InverseDynamics\');
 
     % Preprocess input data
-    [static, dynamic] = PreprocessMOCAP(subj, marker_reg, flt);
+    [static, dynamic, meta] = PreprocessMOCAP(subj, marker_reg, flt);
 
     % Transform force to top of stand (the easiest way to achieve this may be to simply add this as a rigid body
     % to the model. Since there is not angular velocity of the stand, point of force application should be possible to find)
     dynamic = TransformToStand(dynamic);
 
     % Run inverse dynamics procedure
+    % ==============================
+    for i = 1:length(static)
+        % Generate participant model
+        % --------------------------
+        [static_lcs, static_jc, segments] = ...
+            ProcessStatic(static(i), meta.static(i), subj);
 
-    % Generate participant model
-    % --------------------------
+
+    end
+    % 
+    
     for j = 1:length(static_files)
-        % Get trial files
-        trial_files = dir(fullfile(participant_path,participant_folder(folder).name,'*.mat'));
 
-        % Create list of static names
-        for sdx = 1:length(static_files)
-            static_list{sdx} = static_files(sdx).name;
-        end
 
-        % Remove static trials from trial_files structure
-        tdx = 1;
-        while tdx <= length(trial_files)
-            if ismember(trial_files(tdx).name,static_list)
-                trial_files(tdx) = [];
-            else
-                tdx = tdx+1;
-            end
-        end
-
-        % Load static file
-        static_name = strtok(static_files(j).name,'.');
-        load(fullfile(static_files(j).folder,static_files(j).name),static_name);
-
-        % If there are more than one static trial, match moving trials with
-        % the current static file
-        if length(static_files) > 1
-            % Create list of trial files names
-            for tdx = 1:length(trial_files)
-                trial_list{tdx} = trial_files(tdx).name;
-            end
-
-            % Get user input on which trials to match to current static
-            % trial
-            [idx, tf] = listdlg('ListString',trial_list,'PromptString',['Match to: ' static_files(j).name]);
-            if tf
-                % Get list of trials to retain
-                retain_list = trial_list(idx);
-
-                % Remove trials that were not selected from the trial_files
-                % structure
-                tdx = 1;
-                while tdx <= length(trial_files)
-                    if ~ismember(trial_files(tdx).name,retain_list)
-                        trial_files(tdx) = [];
-                    else
-                        tdx = tdx+1;
-                    end
-                end
-            else
-                warning(['No trials were selected. No moving trials will be matched to: ' static_files(j).name]);
-            end
-        end
 
         % Define subject model
-        [static_markers, static_lcs, static_jc, segments] = ProcessStatic(Static, filter_parameters, participant, visit_name);
 
         % Loop over dynamic files
         % -----------------------

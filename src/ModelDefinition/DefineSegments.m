@@ -1,73 +1,65 @@
-function segments = DefineSegments(markers, jc, participant)
-
-% Define segment names
-segment_names = {'pelvis','thigh_r','thigh_l','leg_r','leg_l','foot_r','foot_l'};
+function segments = DefineSegments(markers, lcs, jc, subj, segment_names)
 
 % Loop over segments and define segment parameters
 for i = 1:length(segment_names)
-    segments.(segment_names{i}) = CreateSegment(markers, jc, participant, segment_names{i});
+    segments.(segment_names{i}) = CreateSegment(markers, lcs, jc, subj, segment_names{i});
 end
 end
 
 % Private functions
 % =================
-
-
-function segment = CreateSegment(markers, jc, participant, segment_name)
+function segment = CreateSegment(markers, lcs, jc, subj, segment_name)
 
 % Define length, proximal radius, and distal radius for the given segment
 switch segment_name
     case 'pelvis'
-        len = norm(0.5*(markers.RCREST + markers.LCREST) - 0.5*(markers.RGTR + markers.LGTR));
-        prox_rad = norm(0.5*(markers.RCREST - markers.LCREST));
-        dist_rad = norm(0.5*(markers.RGTR - markers.LGTR));
-        segment.mass = participant.mass*0.142;
-        offset = 0.5*(markers.RCREST + markers.LCREST) - 0.5*(markers.RASIS + markers.LASIS);
+        segment.len = dot(lcs.pelvis.origin - 0.5*(jc.hip_global.right + jc.hip_global.left), lcs.pelvis.epz);
+        segment.prox_rad = norm(markers.pelvis_RASIS - markers.pelvis_LASIS) / 2;
+        segment.dist_rad = norm(jc.hip_global.right - jc.hip_global.left) / 2;
+        segment.mass = subj.mass*0.142;
+        offset = mean([markers.pelvis_RASIS; markers.pelvis_LASIS; ...
+                       markers.pelvis_RPSIS; markers.pelvis_LPSIS]) ...
+                       - lcs.pelvis.origin;
     case 'thigh_r'
-        len = norm(jc.hip_global.right - 0.5*(markers.RMEP + markers.RLEP));
-        prox_rad = norm(jc.hip_global.right - markers.RGTR);
-        dist_rad = norm(0.5*(markers.RMEP - markers.RLEP));
-        segment.mass = participant.mass*0.100;
+        segment.len = norm(jc.hip_global.right - 0.5*(markers.thigh_r_dist_med + markers.thigh_r_dist_lat));
+        segment.prox_rad = norm(jc.hip_global.right - markers.thigh_r_cluster1);
+        segment.dist_rad = norm(markers.thigh_r_dist_med - markers.thigh_r_dist_lat) / 2;
+        segment.mass = subj.mass*0.100;
     case 'thigh_l'
-        len = norm(jc.hip_global.left - 0.5*(markers.LMEP + markers.LLEP));
-        prox_rad = norm(jc.hip_global.left - markers.LGTR);
-        dist_rad = norm(0.5*(markers.LMEP - markers.LLEP));
-        segment.mass = participant.mass*0.100;
+        segment.len = norm(jc.hip_global.left - 0.5*(markers.thigh_l_dist_med + markers.thigh_l_dist_lat));
+        segment.prox_rad = norm(jc.hip_global.left - markers.thigh_l_cluster1);
+        segment.dist_rad = norm(markers.thigh_l_dist_med - markers.thigh_l_dist_lat) / 2;
+        segment.mass = subj.mass*0.100;
     case 'leg_r'
-        len = norm(jc.knee_global.right - jc.ankle_global.right);
-        prox_rad = norm(0.5*(markers.RMEP - markers.RLEP));
-        dist_rad = norm(0.5*(markers.RMMAL - markers.RLMAL));
-        segment.mass = participant.mass*0.0465;
+        segment.len = norm(jc.knee_global.right - jc.ankle_global.right);
+        segment.prox_rad = norm(markers.thigh_r_dist_med - markers.thigh_r_dist_lat) / 2;
+        segment.dist_rad = norm(markers.leg_r_dist_med - markers.leg_r_dist_lat) / 2;
+        segment.mass = subj.mass*0.0465;
     case 'leg_l'
-        len = norm(jc.knee_global.left - jc.ankle_global.left);
-        prox_rad = norm(0.5*(markers.LMEP - markers.LLEP));
-        dist_rad = norm(0.5*(markers.LMMAL - markers.LLMAL));
-        segment.mass = participant.mass*0.0465;
+        segment.len = norm(jc.knee_global.left - jc.ankle_global.left);
+        segment.prox_rad = norm(markers.thigh_l_dist_med - markers.thigh_l_dist_lat) / 2;
+        segment.dist_rad = norm(markers.leg_l_dist_med - markers.leg_l_dist_lat) / 2;
+        segment.mass = subj.mass*0.0465;
     case 'foot_r'
-        len = norm(jc.ankle_global.right - 0.5*(markers.RMTH1 + markers.RMTH5));
-        segment.len = len;
-        prox_rad = norm(0.5*(markers.RMMAL - markers.RLMAL));
-        dist_rad = norm(0.5*(markers.RMTH1 - markers.RMTH5));
-        segment.dist_rad = dist_rad;
-        segment.mass = participant.mass*0.0145;
+        segment.len = norm(jc.ankle_global.right - 0.5*(markers.foot_r_dist_med + markers.foot_r_dist_lat));
+        segment.prox_rad = norm(markers.leg_r_dist_med - markers.leg_r_dist_lat) / 2;
+        segment.dist_rad = norm(markers.foot_r_dist_med - markers.foot_r_dist_lat) / 2;
+        segment.mass = subj.mass*0.0145;
     case 'foot_l'
-        len = norm(jc.ankle_global.left - 0.5*(markers.LMTH1 + markers.LMTH5));
-        segment.len = len;
-        prox_rad = norm(0.5*(markers.LMMAL - markers.LLMAL));
-        dist_rad = norm(0.5*(markers.LMTH1 - markers.LMTH5));
-        segment.dist_rad = dist_rad;
-        segment.mass = participant.mass*0.0145;
+        segment.len = norm(jc.ankle_global.left - 0.5*(markers.foot_l_dist_med + markers.foot_l_dist_lat));
+        segment.prox_rad = norm(markers.leg_l_dist_med - markers.leg_l_dist_lat) / 2;
+        segment.dist_rad = norm(markers.foot_l_dist_med - markers.foot_l_dist_lat) / 2;
+        segment.mass = subj.mass*0.0145;
     otherwise
         error(['Invalid segment name: ' segment_name]);
 end
 
 % Find segment centre of mass
-segment.com = FindCom(len, prox_rad, dist_rad);
-segment.tensor = FindTensor(len, prox_rad, dist_rad, segment.mass);
+segment.com = FindCom(segment.len, segment.prox_rad, segment.dist_rad);
+segment.tensor = FindTensor(segment.len, segment.prox_rad, segment.dist_rad, segment.mass);
 
-% Correct pelvis centre of mass location
-if isequal(segment_name,'pelvis')
-    segment.com = offset + segment.com;
+if strcmp(segment_name, 'pelvis')
+    segment.com = segment.com + offset;
 end
 end
 

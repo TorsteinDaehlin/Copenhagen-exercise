@@ -1,4 +1,4 @@
-function [static, dynamic] = PreprocessMOCAP(subj, marker_reg, flt)
+function [static, dynamic, meta] = PreprocessMOCAP(subj, marker_reg, flt)
 
 % Parse static file(s)
 for i = 1:length(subj.static_name)
@@ -6,10 +6,10 @@ for i = 1:length(subj.static_name)
     raw_static = load(fullfile(subj.data_path, subj.static_name{i}));
 
     % Parse file
-    static(i).markers = ParseQTM(raw_static, marker_reg); 
+    [static(i).markers, meta.static(i)] = ParseQTM(raw_static, marker_reg); 
 
     % Filter marker data
-    flt.fs = static(i).markers.meta.fs;
+    flt.fs = meta.static(i).fs;
     static(i).markers = ...
         FilterData(static(i).markers, flt, 'markers');
 end
@@ -20,15 +20,15 @@ for i = 1:length(subj.move_name)
     raw_dynamic = load(fullfile(subj.data_path, subj.move_name{i}));
 
     % Parse file
-    [dynamic(i).markers, dynamic(i).force] = ParseQTM(raw_dynamic, marker_reg);
+    [dynamic(i).markers, meta.dynamic(i), dynamic(i).force] = ParseQTM(raw_dynamic, marker_reg);
 
     % Filter markers
-    flt.fs = dynamic(i).markers.meta.fs;
+    flt.fs = meta.dynamic(i).fs * meta.dynamic(i).SamplingFactor;
     dynamic(i).markers = ...
         FilterData(dynamic(i).markers, flt, 'markers');
 
     % Process forces
-    dynamic(i).force = ForceProcess(dynamic(i).force, flt);
+    dynamic(i).force = ForceProcess(dynamic(i).force, meta.dynamic(i), flt);
 
 end
 
@@ -47,14 +47,14 @@ end
 
 end
 
-function [markers, varargout] = ParseQTM(qtm_struct, marker_reg)
+function [markers, meta, varargout] = ParseQTM(qtm_struct, marker_reg)
 
 struct_name = fieldnames(qtm_struct);
 
 % Get metadata
-markers.meta.fs = qtm_struct.(struct_name{:}).FrameRate;
-markers.meta.nof = qtm_struct.(struct_name{:}).Frames;
-markers.meta.n_markers = qtm_struct.(struct_name{:}).Trajectories.Labeled.Count;
+meta.fs = qtm_struct.(struct_name{:}).FrameRate;
+meta.nof = qtm_struct.(struct_name{:}).Frames;
+meta.n_markers = qtm_struct.(struct_name{:}).Trajectories.Labeled.Count;
 
 % Get marker labels
 mrk_labels = (qtm_struct.(struct_name{:}).Trajectories.Labeled.Labels)';
@@ -68,12 +68,12 @@ for i = 1:length(mrk_labels)
 end
 
 % Parse forces
-if nargout > 1
+if nargout > 2
     
+    % Get sampling factor
+    meta.SamplingFactor = qtm_struct.(struct_name{:}).Force(1).SamplingFactor;
+
     for j = 1:length(qtm_struct.(struct_name{:}).Force)
-        force(j).meta.SamplingFactor = qtm_struct.(struct_name{:}).Force(1).SamplingFactor;
-        force(j).meta.nof = qtm_struct.(struct_name{:}).Force(1).NrOfFrames;
-        force(j).meta.fs = qtm_struct.(struct_name{:}).Force(1).Frequency;
         force(j).fp_location = qtm_struct.(struct_name{:}).Force(j).ForcePlateLocation./1000; % Convert to meters
         force(j).force = qtm_struct.(struct_name{:}).Force(j).Force';
         force(j).moment = qtm_struct.(struct_name{:}).Force(j).Moment';

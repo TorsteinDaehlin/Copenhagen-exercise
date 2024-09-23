@@ -1,4 +1,4 @@
-function foot_lcs = DefineFootLcs(markers, nof, side)
+function foot_lcs = DefineFootLcs_calc(markers, nof, side)
 
 % Preallocate
 epx = zeros(nof,3);

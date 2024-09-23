@@ -37,12 +37,13 @@ epy = zeros(nof,3);
 epz = zeros(nof,3);
 
 % Define temporary vectors
-temp1 = markers.RASIS - markers.LASIS;
-temp2 = 0.5*(markers.RASIS + markers.LASIS) - 0.5*(markers.RPSIS + markers.LPSIS);
+temp1 = markers.pelvis_RASIS - markers.pelvis_LASIS;
+temp2 = 0.5*(markers.pelvis_RASIS + markers.pelvis_LASIS) - ...
+    0.5*(markers.pelvis_RPSIS + markers.pelvis_LPSIS);
 
 % Define origin and local x-axis
 for i = 1:nof
-    origin(i,:) = 0.5*(markers.RASIS(i,:) + markers.LASIS(i,:));
+    origin(i,:) = 0.5*(markers.pelvis_RASIS(i,:) + markers.pelvis_LASIS(i,:));
     epx(i,:) = temp1(i,:)/norm(temp1(i,:));
 end
 
@@ -58,12 +59,12 @@ for i = 1:nof
 end
 
 % Find hip joint centre
-jc.hip = FindHipCentre(markers, nof);
+jc.hip_pelvis = FindHipCentre(markers, nof);
 
 % Transform hip centres to globla system
 R = [epx', epy', epz'];
-jc.hip_global.right = jc.hip.right*R' + origin;
-jc.hip_global.left = jc.hip.left*R' + origin;
+jc.hip_global.right = jc.hip_pelvis.right*R' + origin;
+jc.hip_global.left = jc.hip_pelvis.left*R' + origin;
 
 % Assing output
 pelvis_lcs.origin = origin;

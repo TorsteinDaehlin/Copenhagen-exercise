@@ -8,11 +8,11 @@ epz = zeros(nof,3);
 
 % Define temporary vectors
 if isequal(lower(side),'right')
-    temp1 = jc.hip_global.(lower(side)) - 0.5*(markers.RMEP + markers.RLEP);
-    temp2 = markers.RLEP - markers.RMEP;
+    temp1 = jc.hip_global.(lower(side)) - 0.5*(markers.thigh_r_dist_med + markers.thigh_r_dist_lat);
+    temp2 = markers.thigh_r_dist_lat - markers.thigh_r_dist_med;
 elseif isequal(lower(side),'left')
-    temp1 = jc.hip_global.(lower(side)) - 0.5*(markers.LMEP + markers.LLEP);
-    temp2 = markers.LMEP - markers.LLEP;
+    temp1 = jc.hip_global.(lower(side)) - 0.5*(markers.thigh_l_dist_med + markers.thigh_l_dist_lat);
+    temp2 = markers.thigh_l_dist_med - markers.thigh_l_dist_lat;
 else
     error(['Invalid side: ' side]);
 end
@@ -38,14 +38,15 @@ end
 
 % Find knee joint centre
 if isequal(lower(side),'right')
-    jc.knee_global.(side) = 0.5*(markers.RMEP + markers.RLEP);
+    jc.knee_global.(side) = 0.5*(markers.thigh_r_dist_med + markers.thigh_r_dist_lat);
 elseif isequal(lower(side),'left')
-    jc.knee_global.(side) = 0.5*(markers.LMEP + markers.LLEP);
+    jc.knee_global.(side) = 0.5*(markers.thigh_l_dist_med + markers.thigh_l_dist_lat);
 end
 
-% Transform knee centres to local system
+% Transform hip and knee centres to local system
 R = [epx', epy', epz'];
-jc.knee.(side) = (jc.knee_global.(side) - origin)*R;
+jc.hip_thigh.(side) = (jc.hip_global.(side) - origin)*R;
+jc.knee_thigh.(side) = (jc.knee_global.(side) - origin)*R;
 
 % Assign ouput
 thigh_lcs.origin = origin;

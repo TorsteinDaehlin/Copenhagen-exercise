@@ -85,7 +85,7 @@ for s = 1:length(subj_dir)
     % Prompt user to provide height and mass
     prompt = {'Enter participant height (m):', ...
         'Enter participant mass (kg):'};
-    answer = inputdlg(prompt, 'Height and mass');
+    answer = inputdlg(prompt, [subj.id ': Height and mass']);
     subj.height = str2double(answer{1});
     subj.mass = str2double(answer{2});
 
@@ -111,6 +111,7 @@ for s = 1:length(subj_dir)
     addpath('.\Preproccess\');
     addpath('.\ModelDefinition\');
     addpath('.\InverseDynamics\');
+    addpath('.\PoseEstimation\');
 
     % Preprocess input data
     [static, dynamic, meta] = PreprocessMOCAP(subj, marker_reg, flt);
@@ -127,7 +128,20 @@ for s = 1:length(subj_dir)
         [static_lcs, static_jc, segments] = ...
             ProcessStatic(static(i), meta.static(i), subj);
 
+        % Loop over dynamic trials matched to current static
+        for j = 1:length(static.match_to_move)
 
+            % Perform pose estimation and calculate model kinematics
+            segment_names = fieldnames(segments);
+            [lcs_dynamic, jc] = ...
+                PoseEstimation(dynamic(j).markers, static.markers, ...
+                static_lcs, segment_names, static_jc, meta.dynamic(j).nof);
+
+            
+            % Determine which external forces are applied to which segments
+
+            % Calculate NJMs using inverse dynamics
+        end
     end
     % 
     
@@ -181,63 +195,6 @@ end
 
 
 
-
-
-
-
-
-
-
-
-
-
-function [lcs, jc] = PoseEstimation(dynamic_markers, static_markers, static_lcs, static_jc, nof)
-
-% Define dynamic pelvis system
-lcs.pelvis = DynamicPelvis(dynamic_markers, static_markers, static_lcs, nof);
-jc.hip.right = TransformJointCentre(lcs.pelvis, static_jc.hip.right, nof);
-jc.hip.left = TransformJointCentre(lcs.pelvis, static_jc.hip.left, nof);
-
-% Define dynamic thigh systems
-lcs.thigh_r = DynamicThigh(dynamic_markers, static_markers, static_lcs, 'right', nof);
-lcs.thigh_l = DynamicThigh(dynamic_markers, static_markers, static_lcs, 'left', nof);
-jc.knee.right = TransformJointCentre(lcs.thigh_r, static_jc.knee.right, nof);
-jc.knee.left = TransformJointCentre(lcs.thigh_l, static_jc.knee.left, nof);
-
-% Define dynamic leg systems
-lcs.leg_r = DynamicLeg(dynamic_markers, static_markers, static_lcs, 'right', nof);
-lcs.leg_l = DynamicLeg(dynamic_markers, static_markers, static_lcs, 'left', nof);
-jc.ankle.right = TransformJointCentre(lcs.leg_r, static_jc.ankle.right, nof);
-jc.ankle.left = TransformJointCentre(lcs.leg_l, static_jc.ankle.left, nof);
-
-% Define dynamic foot systems
-lcs.foot_r = DynamicFoot(dynamic_markers, static_markers, static_lcs, 'right', nof);
-lcs.foot_l = DynamicFoot(dynamic_markers, static_markers, static_lcs, 'left', nof);
-
-% Define dynamic rearfoot systems
-lcs.rearfoot_r = DynamicRearfoot(dynamic_markers, static_markers, static_lcs, 'right', nof);
-lcs.rearfoot_l = DynamicRearfoot(dynamic_markers, static_markers, static_lcs, 'left', nof);
-
-% Define dynamic forefoot systems
-lcs.forefoot_r = DynamicForefoot(dynamic_markers, static_markers, static_lcs, 'right', nof);
-lcs.forefoot_l = DynamicForefoot(dynamic_markers, static_markers, static_lcs, 'left', nof);
-
-end
-
-function global_jc = TransformJointCentre(lcs, local_jc, nof)
-
-% Preallocate
-global_jc = zeros(nof,3);
-
-for frame = 1:nof
-    % Define rotation matrix
-    R = [lcs.epx(frame,:)' lcs.epy(frame,:)' lcs.epz(frame,:)'];
-
-    % Transform joint centre to global frame
-    global_jc(frame,:) = (R*local_jc' + lcs.origin(frame,:)')';
-end
-
-end
 
 function lcs_dynamic = DynamicPelvis(dynamic_markers, static_markers, static_lcs, nof)
 
@@ -522,73 +479,6 @@ lcs_dynamic.origin = origin;
 
 end
 
-function [T, varargout] = LeastSquarePose(x_data,y_data)
-% LeastSquarePose.m
-% -------------------------------------------------------------------------
-% Estimates the pose of a segment based on an arbitraty cluster of markers
-% with known positions in the bone-embedded frame of the segment.
-% -------------------------------------------------------------------------
-% Syntax and description:
-% [Rotation matrix, postition vector] = LeastSquarePose(bone-embedded data,
-% global data)
-%
-% The function takes a 3 x m matrix with time-invariant positions of m
-% markers expressed in the bone embedded frame and a 3 x m matrix of the
-% position of the same markers in an instant in time measured during
-% movement and expressed in the global coordinate system. The function
-% returns the optimal estimates of the rotation matrix and postition vector
-% of the segment for the current instant in time, computed using the least
-% squares algorithm described by Söderkvist & Wedin (1993) and extended by
-% Cappozzo et al. (1997).
-% -------------------------------------------------------------------------
-% Written by Torstein E. Daehlin, August, 2021.
-% -------------------------------------------------------------------------
-
-% References
-%{
-Cappozzo, A., Cappello, A., Croce, U. D., & Pensalfini, F. (1997).
-    Surface-marker cluster design criteria for 3-D bone movement
-    reconstruction. IEEE Transactions on Biomedical Engineering, 44(12),
-    1165-1174.
-Söderkvist, I., & Wedin, P. Å. (1993). Determining the movements
-    of the skeleton using well-configured markers. Journal of biomechanics,
-    26(12), 1473-1477.
-%}
-
-% Preallocate
-X = zeros(size(x_data));
-Y = zeros(size(y_data));
-
-% Compute cluster model and marker centroid positions
-x_mean = mean(x_data,2);
-y_mean = mean(y_data,2);
-
-% Compute cluster model position matrix
-for i = 1:size(x_data,2)
-    X(:,i) = x_data(:,i) - x_mean;
-    Y(:,i) = y_data(:,i) - y_mean;
-end
-
-% Compute cluster cross-dispersion
-Z = Y*X';
-
-% Decompose cross-dispersion matrix using SVD
-[U,~,V] = svd(Z);
-
-% Compute least square estimates of rotation matrix and postition vector
-R = U*diag([1 1 det(U*V')])*V';
-p = y_mean - R*x_mean;
-
-% Construct transformation matrix
-T = [R p; 0 0 0 1];
-
-% Calculate the norm of the residuals
-sq_diff = ((R*X + p) - Y).^2;
-dof = numel(Y)-6;
-residual = sqrt(sum(sq_diff/dof));
-varargout{1} = residual;
-
-end
 
 function [position, velocity, acceleration] = FindLinearKinematics(segments, dynamic_lcs, time, nof)
 

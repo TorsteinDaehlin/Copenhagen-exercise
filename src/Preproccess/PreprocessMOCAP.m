@@ -38,11 +38,11 @@ if length(static) > 1
         static_name = ['Static ' num2str(i)];
         idx = listdlg('ListString', subj.move_name, 'PromptString', ...
             ['Select trials to be matched with ' static_name]);
-        static(i).match_to_move = subj.move_name(idx);
+        static(i).match_to_move = idx;
     end
 else
     % Assume that all moving trials should be matched to the static trial
-    static.match_to_move = subj.move_name;
+    static.match_to_move = 1:length(subj.move_name);
 end
 
 end

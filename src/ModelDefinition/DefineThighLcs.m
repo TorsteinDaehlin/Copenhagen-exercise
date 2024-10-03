@@ -37,16 +37,16 @@ for i = 1:nof
 end
 
 % Find knee joint centre
+R = [epx', epy', epz'];
 if isequal(lower(side),'right')
     jc.knee_global.(side) = 0.5*(markers.thigh_r_dist_med + markers.thigh_r_dist_lat);
+    jc.hip_thigh_r.(side) = (jc.hip_global.(side) - origin)*R;
+    jc.knee_thigh_r.(side) = (jc.knee_global.(side) - origin)*R;
 elseif isequal(lower(side),'left')
     jc.knee_global.(side) = 0.5*(markers.thigh_l_dist_med + markers.thigh_l_dist_lat);
+    jc.hip_thigh_l.(side) = (jc.hip_global.(side) - origin)*R;
+    jc.knee_thigh_l.(side) = (jc.knee_global.(side) - origin)*R;
 end
-
-% Transform hip and knee centres to local system
-R = [epx', epy', epz'];
-jc.hip_thigh.(side) = (jc.hip_global.(side) - origin)*R;
-jc.knee_thigh.(side) = (jc.knee_global.(side) - origin)*R;
 
 % Assign ouput
 thigh_lcs.origin = origin;

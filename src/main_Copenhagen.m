@@ -133,10 +133,12 @@ for s = 1:length(subj_dir)
 
             % Perform inverse kinematics
             [kinematics, time] = ...
-                InverseKinematics(dynamic(j).markers, static.markers, ...
+                InverseKinematics(dynamic(j).markers, static(i).markers, ...
                 static_lcs, static_jc, segments, meta.dynamic(j));            
 
             % Determine which external forces are applied to which segments
+            roi = IdentifyROI(time, dynamic(j).force(2).force, subj.mass);
+
 
             % Calculate NJMs using inverse dynamics
         end
@@ -200,67 +202,6 @@ end
 
 
 
-function njm = CalculatejointMoments(segments, dynamic_lcs, jc, grf, angular_velocity, angular_acceleration, acceleration, position, nof)
-
-% Define gravity vector
-g = [0 0 -9.81];
-
-% Extract segment and joint names
-sides = {'right','left'};
-joint_names = fieldnames(jc);
-
-% Loop over frames
-for frame = 1:nof
-    for i = 1:length(joint_names)
-        for side = 1:length(sides)
-            % Find names of segments located distal to the joint
-            segment_names = FindSegmentNames([joint_names{i} '_' sides{side}]);
-
-            % Preallocate
-            tau_I = zeros(length(segment_names),3);
-            tau = zeros(length(segment_names),3);
-
-            % Loop over segments distal to the joint
-            for j = 1:length(segment_names)
-
-                % Calculate net force acting on each segment
-                F = segments.(segment_names{j}).mass * (acceleration.(segment_names{j})(frame,:) - g);
-
-                % Transform angular velocity and accelereation vectors to the
-                % segment coordinate system
-                R = [dynamic_lcs.(segment_names{j}).epx(frame,:)' dynamic_lcs.(segment_names{j}).epy(frame,:)' ...
-                    dynamic_lcs.(segment_names{j}).epz(frame,:)'];
-                omega = (R'*deg2rad(angular_velocity.(segment_names{j})(frame,:))')';
-                alpha = (R'*deg2rad(angular_acceleration.(segment_names{j})(frame,:))')';
-
-                % Calculate inretial moment of the segment and transform it
-                % back to the global coordiante system
-                tau_I(j,:) = (R * (segments.(segment_names{j}).tensor*alpha' + ...
-                    cross(omega',(segments.(segment_names{j}).tensor*omega'))))';
-
-                % Find moment arm of centre of mass
-                r = position.(segment_names{j})(frame,:) - jc.(joint_names{i}).(sides{side})(frame,:);
-
-                % Calculate segment moment
-                tau(j,:) = cross(r,F);
-            end
-
-            % Find moment arm of ground reaction force
-            r_grf = grf.(sides{side}).cop(frame,:) - jc.(joint_names{i}).(sides{side})(frame,:);
-
-            % Calculate net joint moment
-            njm_global = sum((tau_I + tau),1) - ...
-                grf.(sides{side}).free_moment(frame,:) - cross(r_grf,grf.(sides{side}).force(frame,:));
-
-            % Transform net joint moment into the coordiante system of the
-            % distal segment
-            R = [dynamic_lcs.(segment_names{1}).epx(frame,:)' dynamic_lcs.(segment_names{1}).epy(frame,:)' ...
-                dynamic_lcs.(segment_names{1}).epz(frame,:)'];
-            njm.(joint_names{i}).(sides{side})(frame,:) = (R*njm_global')';
-        end
-    end
-end
-end
 
 function joint_power = CalculateJointPower(njm, angular_velocity, dynamic_lcs, nof)
 

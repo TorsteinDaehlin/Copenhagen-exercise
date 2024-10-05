@@ -2,7 +2,7 @@ function [kinematics, time] = InverseKinematics(dynamic_markers, static_markers,
 
 % Get temporal characteristics
 nof = meta.nof;
-time = (1:nof)'./data_struct.FrameRate;
+time = (1:nof)'./ meta.fs;
 
 % Perform pose estimation
 segment_names = fieldnames(segments);
@@ -14,6 +14,8 @@ segment_names = fieldnames(segments);
     CalcLinearKinematics(segments, dynamic_lcs, time, nof);
 
 % Compute angular kinematics
+[segment_angles, joint_angles, angular_velocity, angular_acceleration] = ...
+    calcAngularKinematics(dynamic_lcs, static_lcs, nof, time);
 
 
 end

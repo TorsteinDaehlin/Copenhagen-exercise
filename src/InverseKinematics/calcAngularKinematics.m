@@ -23,8 +23,8 @@ end
 % Calculate joint angles
 % ----------------------
 % Define joint names
-joint_names = {'hip','knee','ankle','midfoot'};
-side = {'right','left'};
+joint_names = {'hip','knee','ankle'};
+side = {'right'};
 
 for i = 1:length(joint_names)
     for j = 1:length(side)

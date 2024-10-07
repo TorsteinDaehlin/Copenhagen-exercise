@@ -112,6 +112,7 @@ for s = 1:length(subj_dir)
     addpath('.\ModelDefinition\');
     addpath('.\InverseDynamics\');
     addpath('.\InverseKinematics\');
+    addpath('.\HelperFunctions\');
 
     % Preprocess input data
     [static, dynamic, meta] = PreprocessMOCAP(subj, marker_reg, flt);
@@ -135,10 +136,17 @@ for s = 1:length(subj_dir)
             [kinematics, time] = ...
                 InverseKinematics(dynamic(j).markers, static(i).markers, ...
                 static_lcs, static_jc, segments, meta.dynamic(j));            
-
+            
             % Determine which external forces are applied to which segments
             roi = IdentifyROI(time, dynamic(j).force(2).force, subj.mass);
+            grf_act_on = ApplyForceToSegment(kinematics.jc, dynamic(j).force(2).cop, roi);
 
+            if ~isequal(grf_act_on{:})
+                error('COP segment mismatch');
+            end
+            
+            % Visualize dynamic trial
+            PlotDynamic(dynamic(j).markers, kinematics, dynamic(j).force(2), roi, subj);
 
             % Calculate NJMs using inverse dynamics
         end
@@ -202,131 +210,6 @@ end
 
 
 
-
-function joint_power = CalculateJointPower(njm, angular_velocity, dynamic_lcs, nof)
-
-% Get joint names and side names
-joint_names = fieldnames(njm);
-side_names = fieldnames(njm.(joint_names{1}));
-
-for joint = 1:length(joint_names)
-    for side = 1:length(side_names)
-        % Find segment names (1st element of the vector returned is the segment distal to the joint)
-        segment_names = FindSegmentNames([joint_names{joint} '_' side_names{side}]);
-
-        for frame = 1:nof
-            % Transform joint angular velocity into local coordinate system of the distal segment (njm is already expressed here)
-            R = [dynamic_lcs.(segment_names{1}).epx(frame,:)' dynamic_lcs.(segment_names{1}).epy(frame,:)' ...
-                dynamic_lcs.(segment_names{1}).epz(frame,:)'];
-            omega = (R'*deg2rad(angular_velocity.(joint_names{joint}).(side_names{side})(frame,:))')';
-
-            % Calculate instantaneous power
-            joint_power.(joint_names{joint}).(side_names{side})(frame,:) =  ...
-                njm.(joint_names{joint}).(side_names{side})(frame,:).*omega;
-        end
-    end
-end
-end
-
-function PlotDynamic(markers, lcs, jc, grf, trial_name, visit_name, nof)
-
-% Plot parameters
-axis_scale = 0.1;
-line_colors = {'r-','g-','b-'};
-
-% Define figure
-fig = figure('Name',[trial_name ' - ' visit_name]);
-fig.WindowState = 'maximized';
-pause(2);
-
-% Loop over frames nad animate motion
-for frame = 1:nof
-
-    % Plot global coordinate system
-    global_ax = eye(3);
-    for j = 1:3
-        plot3([0 global_ax(1,j)*axis_scale*2],[0 global_ax(2,j)*axis_scale*2],[0 global_ax(3,j)*axis_scale*2],line_colors{j});
-        hold on;
-    end
-
-    % Label global coordinate axes
-    text(0.21,0,0,'X','Color','r','FontWeight','bold');
-    text(0,0.21,0,'Y','Color','g','FontWeight','bold');
-    text(0,0,0.21,'Z','Color','b','FontWeight','bold');
-
-    % Plot markers
-    marker_names = fieldnames(markers);
-    for i = 1:length(marker_names)
-        % Select marker color
-        if marker_names{i}(1) == 'R'
-            marker_color = '#77AC30';
-        elseif marker_names{i}(1) == 'L'
-            marker_color = '#0072BD';
-        else
-            marker_color = '#D95319';
-        end
-
-        % Plot marker
-        plot3(markers.(marker_names{i})(frame,1),markers.(marker_names{i})(frame,2),markers.(marker_names{i})(frame,3), ...
-            'o','MarkerEdgeColor',marker_color,'MarkerFaceColor',marker_color);
-    end
-
-    % Plot local coordinate systems
-    lcs_names = fieldnames(lcs);
-    axis_names = {'epx','epy','epz'};
-    for i = 1:length(lcs_names)
-        for j = 1:length(axis_names)
-            plot3([lcs.(lcs_names{i}).origin(frame,1) lcs.(lcs_names{i}).origin(frame,1)+lcs.(lcs_names{i}).(axis_names{j})(frame,1)*axis_scale], ...
-                [lcs.(lcs_names{i}).origin(frame,2) lcs.(lcs_names{i}).origin(frame,2)+lcs.(lcs_names{i}).(axis_names{j})(frame,2)*axis_scale], ...
-                [lcs.(lcs_names{i}).origin(frame,3) lcs.(lcs_names{i}).origin(frame,3)+lcs.(lcs_names{i}).(axis_names{j})(frame,3)*axis_scale], ...
-                line_colors{j});
-        end
-    end
-
-    % Plot joint centres
-    jc_names = {'hip','knee','ankle'};
-    sides = {'right','left'};
-    for i = 1:length(jc_names)
-        for j = 1:length(sides)
-            plot3(jc.(jc_names{i}).(sides{j})(frame,1),jc.(jc_names{i}).(sides{j})(frame,2),jc.(jc_names{i}).(sides{j})(frame,3), ...
-                'o','MarkerEdgeColor','#A2142F','MarkerFaceColor','#A2142F','MarkerSize',10);
-        end
-    end
-
-    % Plot force platforms and ground reaction force
-    for j = 1:length(sides)
-        for i = 1:3
-            plot3([grf.(sides{j}).corners(i,1) grf.(sides{j}).corners(i+1,1)], ...
-                [grf.(sides{j}).corners(i,2) grf.(sides{j}).corners(i+1,2)], ...
-                [grf.(sides{j}).corners(i,3) grf.(sides{j}).corners(i+1,3)],'w-');
-        end
-        plot3([grf.(sides{j}).corners(1,1) grf.(sides{j}).corners(4,1)], ...
-            [grf.(sides{j}).corners(1,2) grf.(sides{j}).corners(4,2)], ...
-            [grf.(sides{j}).corners(1,3) grf.(sides{j}).corners(4,3)],'w-');
-        plot3([grf.(sides{j}).cop(frame,1) grf.(sides{j}).cop(frame,1)+grf.(sides{j}).force(frame,1)/1000], ...
-            [grf.(sides{j}).cop(frame,2) grf.(sides{j}).cop(frame,2)+grf.(sides{j}).force(frame,2)/1000], ...
-            [grf.(sides{j}).cop(frame,3) grf.(sides{j}).cop(frame,3)+grf.(sides{j}).force(frame,3)/1000],'r-');
-    end
-
-    % Format axes
-    anchor = 0.5*(markers.RCREST(end,:) + markers.LCREST(end,:));
-    ax = gca;
-    ax.Color = 'k';
-    ax.XLim = [anchor(1)-1 anchor(1)+1];
-    ax.YLim = [anchor(2)-1 anchor(2)+1];
-    ax.ZLim = [-0.1 1.6];
-    ax.DataAspectRatio = [1 1 1];
-    ax.View = [-235 20];
-    ax.XLabel.String = 'Position (m)';
-    ax.YLabel.String = 'Position (m)';
-    ax.ZLabel.String = 'Position (m)';
-
-    pause(0.005);
-    if ~isequal(frame,nof)
-        clf(fig);
-    end
-end
-end
 
 function segment_names = FindSegmentNames(joint_name)
 

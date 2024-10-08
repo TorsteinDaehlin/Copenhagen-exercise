@@ -1,11 +1,11 @@
 % main_Copenhagen.m
 % -------------------------------------------------------------------------
-% Performes inverse dynamics batch processing of vertical and approach
-% jumps collected using a Qualisys motion capture system, 2 AMTI force
-% platforms, and a CAST marker set consisting of 28 anatomical markers and
-% 27 tracking markers for the incline vs. block heel-raise research project
-% conducted in the Sports Biomechanics Laboratory at the University of
-% Alberta, AB, Canada 2020-2021.
+% Performes inverse dynamics batch processing of Copenhagen exercise data
+% collected using a Qualisys motion capture system, 2 AMTI force platforms,
+% and a CAST marker set consisting of 28 anatomical markers and 27 tracking
+% markers for the incline vs. block heel-raise research project conducted
+% in the Sports Biomechanics Laboratory at the University of Alberta, AB,
+% Canada 2020-2021.
 % -------------------------------------------------------------------------
 % Syntax and description: InclineVsBlock2021() - The program prompts the
 % user to select a participant directory and subsequently inspects the
@@ -200,15 +200,6 @@ for s = 1:length(subj_dir)
     save(fullfile(participant_path,'Results',[participant.name '_' visit_name '.mat']),'output');
 end
 end
-
-
-
-
-
-
-
-
-
 
 
 function segment_names = FindSegmentNames(joint_name)

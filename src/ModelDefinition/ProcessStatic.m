@@ -1,4 +1,4 @@
-function [static_lcs, static_jc, segments] = ProcessStatic(static, meta, subj)
+function [static_lcs, static_jc, segments] = ProcessStatic(static, meta, subj, static_nr)
 
 % Get temporal characteristics
 nof = meta.nof;
@@ -19,7 +19,7 @@ segment_names = fieldnames(static_lcs);
 segments = DefineSegments(markers, static_lcs, static_jc, subj, segment_names);
 
 % Plot static trial
-PlotStatic(markers, static_lcs, static_jc, segments, subj);
+PlotStatic(markers, static_lcs, static_jc, segments, subj, static_nr);
 
 end
 
@@ -28,7 +28,7 @@ end
 
 % Plot static produces a plot of the static trial to assist the user in
 % assessing whether the model is created correctly.
-function PlotStatic(markers, lcs, jc, segments, subj)
+function PlotStatic(markers, lcs, jc, segments, subj, static_nr)
 
 % Plot parameters
 axis_scale = 0.1;
@@ -119,7 +119,14 @@ text(x_pos,y_pos,z_pos,subj.id,'Color','w','HorizontalAlignment','center','FontW
 text(x_pos,y_pos,z_pos-0.05,[num2str(subj.height,3) ' m'],'Color','w','HorizontalAlignment','center');
 text(x_pos,y_pos,z_pos-0.10,[num2str(subj.mass,3) ' kg'],'Color','w','HorizontalAlignment','center');
 
-% TODO: SAVE FIGURE AS DATA CHECK
+% Construct trial name and add plot title
+trial_name = [subj.id ' - Static' num2str(static_nr)];
+title(trial_name);
+
+% Save figure as data check
+exportgraphics(fig, ...
+    fullfile(subj.check_path, [subj.id '_static_' num2str(static_nr) '.jpg']), ...
+    'BackgroundColor', 'current');
 
 % Display figure before closing
 pause(5);

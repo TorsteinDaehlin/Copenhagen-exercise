@@ -1,7 +1,7 @@
-function  [roi] = IdentifyROI(t, grf, mass)
+function  [roi] = IdentifyROI(t, grf, subj, dynamic_nr)
 
 % Truncate force signal
-grf_norm = grf ./ (mass * 9.81);
+grf_norm = grf ./ (subj.mass * 9.81);
 
 % The vertical ground reaction force is heavily filtered using a moving
 % average smoothing approach before identifying when the participant is in
@@ -12,13 +12,13 @@ roi = findchangepts(movmean(grf_norm(idx(1):idx(2), 3), 50), 'MaxNumChanges', 6)
 
 % Reshape ideces so the first column contains the start of a region of
 % interest and the second constains the end of a region of interst
-roi = reshape(idx(1) + roi, [2, 3])';
+roi = reshape(idx(1) + roi, 2, [])';
 
 % Create data check figure
 cmap = parula(9);
-cmap = flipud([cmap(1,:); cmap(4, :); cmap(7,:)]);
+cmap = flipud([cmap(1,:); cmap(5, :); cmap(8,:)]);
 
-figure();
+fig = figure();
 c = size(grf_norm, 2);
 for i = 1:c
     p (i) = plot(t, grf_norm(:, i), 'Color', cmap(i, :));
@@ -32,5 +32,11 @@ ylabel('$GRF (\frac{N}{m \cdot g})$', 'Interpreter', 'latex');
 title('$ROI data check$', 'Interpreter', 'latex');
 
 % Save to output directory
+exportgraphics(fig, ...
+    fullfile(subj.check_path, ['ROI_' subj.id '_' num2str(dynamic_nr) '.jpg']), ...
+    'BackgroundColor','white');
+
+% Close figure
+close(fig);
 
 end

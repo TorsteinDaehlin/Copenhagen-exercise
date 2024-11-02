@@ -81,6 +81,17 @@ for s = 1:length(subj_dir)
     % =============================
     % Store dirctory as participant name
     subj.id = subj_dir(s).name;
+    
+    % Create paths for subject outputs
+    subj.out_path = fullfile(dst_path, subj.id);
+    if ~isfolder(subj.out_path)
+        mkdir(subj.out_path);
+    end
+
+    subj.check_path = fullfile(subj.out_path, 'DataChecks');
+    if ~isfolder(subj.check_path)
+        mkdir(subj.check_path);
+    end
 
     % Prompt user to provide height and mass
     prompt = {'Enter participant height (m):', ...
@@ -127,7 +138,7 @@ for s = 1:length(subj_dir)
         % Generate participant model
         % --------------------------
         [static_lcs, static_jc, segments] = ...
-            ProcessStatic(static(i), meta.static(i), subj);
+            ProcessStatic(static(i), meta.static(i), subj, i);
 
         % Loop over dynamic trials matched to current static
         for j = 1:length(static.match_to_move)
@@ -138,7 +149,7 @@ for s = 1:length(subj_dir)
                 static_lcs, static_jc, segments, meta.dynamic(j));            
             
             % Determine which external forces are applied to which segments
-            roi = IdentifyROI(time, dynamic(j).force(2).force, subj.mass);
+            roi = IdentifyROI(time, dynamic(j).force(2).force, subj, static.match_to_move(j));
             grf_act_on = ApplyForceToSegment(kinematics.jc, dynamic(j).force(2).cop, roi);
 
             if ~isequal(grf_act_on{:})
@@ -146,9 +157,11 @@ for s = 1:length(subj_dir)
             end
             
             % Visualize dynamic trial
-            PlotDynamic(dynamic(j).markers, kinematics, dynamic(j).force(2), roi, subj);
+            PlotDynamic(dynamic(j).markers, kinematics, dynamic(j).force(2), ...
+                roi, subj, static.match_to_move(j));
 
             % Calculate NJMs using inverse dynamics
+            njm(j) = calcJointMoments(segments, kinematics, dynamic(j).force(2), roi);
         end
     end
     % 

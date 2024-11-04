@@ -62,7 +62,7 @@ for k = 1:numel(roi_mean)
     end
 
     % Plot joint centres
-    jc_names = {'hip_thigh_r','knee_thigh_r','ankle_leg_r'};
+    jc_names = {'hip_thigh','knee_thigh','ankle_leg'};
     for i = 1:length(jc_names)
         plot3(jc.(jc_names{i})(roi_mean(k),1), jc.(jc_names{i})(roi_mean(k),2), jc.(jc_names{i})(roi_mean(k),3), ...
             'o','MarkerEdgeColor','#A2142F','MarkerFaceColor','#A2142F','MarkerSize',10);

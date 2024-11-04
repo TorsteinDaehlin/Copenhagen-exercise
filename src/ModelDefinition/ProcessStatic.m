@@ -1,4 +1,4 @@
-function [static_lcs, static_jc, segments] = ProcessStatic(static, meta, subj, static_nr)
+function [static_lcs, static_jc, segments, joints] = ProcessStatic(static, meta, subj, static_nr)
 
 % Get temporal characteristics
 nof = meta.nof;
@@ -13,6 +13,9 @@ end
 
 % Define local coordinate systems
 [static_lcs, static_jc] = DefineLocalSystems(markers);
+
+% Connect joints
+joints = ConnectJoints(static_jc, 'pelvis');
 
 % Define segment parameters
 segment_names = fieldnames(static_lcs);

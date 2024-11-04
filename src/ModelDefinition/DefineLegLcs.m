@@ -35,16 +35,15 @@ for i = 1:nof
     epx(i,:) = cross(epy(i,:),epz(i,:));
 end
 
-% Find ankle joint centre
+% Find joint centres
 R = [epx', epy', epz'];
-
 if isequal(lower(side),'right')
     jc.ankle_global.(side) = 0.5*(markers.leg_r_dist_med + markers.leg_r_dist_lat);
-    jc.ankle_leg_r.(side) = (jc.ankle_global.(side) - origin)*R;
 elseif isequal(lower(side),'left')
     jc.ankle_global.(side) = 0.5*(markers.leg_l_dist_med + markers.leg_l_dist_lat);
-    jc.ankle_leg_l.(side) = (jc.ankle_global.(side) - origin)*R;
 end
+jc.knee_leg.(side) = (jc.knee_global.(side) - origin)*R;
+jc.ankle_leg.(side) = (jc.ankle_global.(side) - origin)*R;
 
 % Assign ouput
 leg_lcs.origin = origin;

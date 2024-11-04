@@ -137,7 +137,7 @@ for s = 1:length(subj_dir)
     for i = 1:length(static)
         % Generate participant model
         % --------------------------
-        [static_lcs, static_jc, segments] = ...
+        [static_lcs, static_jc, segments, joints] = ...
             ProcessStatic(static(i), meta.static(i), subj, i);
 
         % Loop over dynamic trials matched to current static
@@ -154,6 +154,8 @@ for s = 1:length(subj_dir)
 
             if ~isequal(grf_act_on{:})
                 error('COP segment mismatch');
+            else
+                grf_act_on = grf_act_on{1};
             end
             
             % Visualize dynamic trial
@@ -161,7 +163,9 @@ for s = 1:length(subj_dir)
                 roi, subj, static.match_to_move(j));
 
             % Calculate NJMs using inverse dynamics
-            njm(j) = calcJointMoments(segments, kinematics, dynamic(j).force(2), roi);
+            njm(j) = ...
+                calcJointMoments(segments, kinematics, dynamic(j).force(2), ...
+                joints, grf_act_on, meta.dynamic(j).nof);
         end
     end
     % 

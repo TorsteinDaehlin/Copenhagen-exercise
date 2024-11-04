@@ -22,6 +22,9 @@ for i = 1:length(joint_names)
     for j = 1:length(side)
         [~, segment_name] = strtok(joint_names{i}, '_');
         segment_name = segment_name(2:end);
+        if ~strcmp(segment_name, 'pelvis')
+            segment_name = [segment_name '_' side{j}(1)];
+        end
         jc.(joint_names{i}) = ...
             TransformJointCentre(dynamic_lcs.(segment_name), static_jc.(joint_names{i}).(side{j}), nof);
     end

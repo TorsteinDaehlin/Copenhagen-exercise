@@ -8,8 +8,8 @@ for i = 1:n_roi
 
     for frame = roi(i, 1):roi(i, 2)
         % Calculate distances
-        l_hip_cop = norm(cop(frame, :) - jc.hip_thigh_r(frame, :));
-        l_hip_knee = norm(jc.knee_thigh_r(frame, :) - jc.hip_thigh_r(frame, :));
+        l_hip_cop = norm(cop(frame, :) - jc.hip_thigh(frame, :));
+        l_hip_knee = norm(jc.knee_thigh(frame, :) - jc.hip_thigh(frame, :));
 
         % Check first condition
         if l_hip_cop < l_hip_knee

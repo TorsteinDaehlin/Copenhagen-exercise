@@ -13,7 +13,7 @@ function [lcs, jc] = DefineLocalSystems(markers)
 % [lcs.leg_l, jc] = DefineLegLcs(markers, jc, 1, 'left');
 
 % Define foot coordinate system
-[lcs.foot_r] = DefineFootLcs(markers, 1, 'right');
+[lcs.foot_r, jc] = DefineFootLcs(markers, jc, 1, 'right');
 % lcs.foot_l = DefineFootLcs(markers, 1, 'left');
 
 % Define rearfoot coordinate systems

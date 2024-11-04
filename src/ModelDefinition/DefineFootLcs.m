@@ -1,4 +1,4 @@
-function foot_lcs = DefineFootLcs(markers, nof, side)
+function [foot_lcs, jc] = DefineFootLcs(markers, jc, nof, side)
 
 % Preallocate
 epx = zeros(nof,3);
@@ -37,6 +37,10 @@ for i = 1:nof
     epz(i,:) = temp4/norm(temp4);
     epx(i,:) = cross(epy(i,:),epz(i,:));
 end
+
+% Find joint centres
+R = [epx', epy', epz'];
+jc.ankle_foot.(side) = (jc.ankle_global.(side) - origin)*R;
 
 % Assign ouput
 foot_lcs.origin = origin;

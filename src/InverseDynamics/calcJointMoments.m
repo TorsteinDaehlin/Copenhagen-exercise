@@ -58,9 +58,12 @@ for i = 1:length(joint_names)
         end
 
         % Find moment arm of ground reaction force
-        % ENSURE GRF IS ONLY APPLIED TO JOINTS PROXIMAL TO THE SEGMENT IT
-        % ACTS ON
-        r_grf = grf.cop(frame,:) - jc.(joint_names{i})(frame,:);
+        if contains(prox_joints, joint_names{i})
+            r_grf = grf.cop(frame,:) - jc.([strtok(joint_names{i}, '_') ...
+                '_' strtok(joints.(joint_names{i}).child_frame, '_')])(frame,:);
+        else
+            r_grf = [0 0 0];
+        end
 
         % Calculate net joint moment
         njm_global = sum((tau_I + tau),1) - ...

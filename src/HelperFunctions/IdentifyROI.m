@@ -16,7 +16,7 @@ roi = reshape(idx(1) + roi, 2, [])';
 
 % Create data check figure
 cmap = parula(9);
-cmap = flipud([cmap(1,:); cmap(5, :); cmap(8,:)]);
+cmap = flipud([cmap(1,:); cmap(4, :); cmap(8,:)]);
 
 fig = figure();
 c = size(grf_norm, 2);
@@ -33,7 +33,7 @@ title('$ROI data check$', 'Interpreter', 'latex');
 
 % Save to output directory
 exportgraphics(fig, ...
-    fullfile(subj.check_path, ['ROI_' subj.id '_' num2str(dynamic_nr) '.jpg']), ...
+    fullfile(subj.check_path, [subj.id '_ROI_' num2str(dynamic_nr) '.jpg']), ...
     'BackgroundColor','white');
 
 % Close figure

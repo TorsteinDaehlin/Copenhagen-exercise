@@ -146,7 +146,7 @@ for s = 1:length(subj_dir)
             % Perform inverse kinematics
             [kinematics, time] = ...
                 InverseKinematics(dynamic(j).markers, static(i).markers, ...
-                static_lcs, static_jc, segments, meta.dynamic(j));            
+                static_lcs, static_jc, segments, meta.dynamic(j));   
             
             % Determine which external forces are applied to which segments
             roi = IdentifyROI(time, dynamic(j).force(2).force, subj, static.match_to_move(j));
@@ -166,6 +166,10 @@ for s = 1:length(subj_dir)
             njm(j) = ...
                 calcJointMoments(segments, kinematics, dynamic(j).force(2), ...
                 joints, grf_act_on, meta.dynamic(j).nof);
+
+            % Plot NJM data checks
+            PlotKinematicsChecks(time, kinematics, roi, subj, static.match_to_move(j));
+            PlotNjmChecks(time, njm(j), dynamic(j).force(2), roi, subj, static.match_to_move(j));
         end
     end
     % 

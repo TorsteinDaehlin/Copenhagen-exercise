@@ -13,7 +13,7 @@ for i = 1:length(segment_names)
         % Define rotation matrix
         R = [dynamic_lcs.(segment_names{i}).epx(frame,:)' dynamic_lcs.(segment_names{i}).epy(frame,:)' ...
             dynamic_lcs.(segment_names{i}).epz(frame,:)'];
-        [x_angle, y_angle, z_angle] = EulerAngles(R,'zyx','deg');
+        [x_angle, y_angle, z_angle] = EulerAngles(R,'xyz','deg');
 
         % Assign output
         segment_angles.(segment_names{i})(frame,:) = [x_angle y_angle z_angle];

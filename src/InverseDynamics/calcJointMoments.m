@@ -14,12 +14,16 @@ g = [0 0 -9.81];
 
 % Extract segment and joint names
 joint_names = fieldnames(joints);
+joint_names = joint_names(contains(joint_names, side));
+
+% Find joint proximal to the segment grf acts on
+prox_joints = getProximalJoints(joints, grf_act_on, {});
 
 % Loop over each joint
 for i = 1:length(joint_names)
 
     % Find names of segments located distal to the joint
-    segment_names = getDistalSegments(joints, joint_names{i}, side);
+    segment_names = getDistalSegments(joints, joint_names{i});
    
     for frame = 1:nof
         % Preallocate
@@ -46,14 +50,16 @@ for i = 1:length(joint_names)
                 cross(omega',(segments.(segment_names{j}).tensor*omega'))))';
 
             % Find moment arm of centre of mass
-            r = position.(segment_names{j})(frame,:) - jc.(joint_names{i})(frame,:);
+            r = position.(segment_names{j})(frame,:) - jc.([strtok(joint_names{i}, '_') ...
+                '_' strtok(joints.(joint_names{i}).child_frame, '_')])(frame,:);
 
             % Calculate segment moment
             tau(j,:) = cross(r,F);
         end
 
         % Find moment arm of ground reaction force
-        
+        % ENSURE GRF IS ONLY APPLIED TO JOINTS PROXIMAL TO THE SEGMENT IT
+        % ACTS ON
         r_grf = grf.cop(frame,:) - jc.(joint_names{i})(frame,:);
 
         % Calculate net joint moment
@@ -86,4 +92,22 @@ for i = 1:length(lbls)
         segment_names{end+1} = joints.(lbls{i}).child_frame;
     end
 end
+end
+
+function joint_names = getProximalJoints(joints, current_segment, joint_names)
+
+% Get the names of every joint
+lbls = fieldnames(joints);
+
+% Search tree to for segment whose parent frame is previous segment name
+for i = 1:length(lbls)
+    if strcmp(joints.(lbls{i}).child_frame, current_segment)
+        joint_names{end+1} = lbls{i};
+
+        current_segment = joints.(lbls{i}).parent_frame;
+
+        joint_names = getProximalJoints(joints, current_segment, joint_names);
+    end
+end
+
 end

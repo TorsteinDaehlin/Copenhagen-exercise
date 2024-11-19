@@ -219,26 +219,6 @@ end
 end
 
 
-function segment_names = FindSegmentNames(joint_name)
-
-switch joint_name
-    case 'hip_right'
-        segment_names = {'thigh_r','leg_r','foot_r'};
-    case 'hip_left'
-        segment_names = {'thigh_l','leg_l','foot_l'};
-    case 'knee_right'
-        segment_names = {'leg_r','foot_r'};
-    case 'knee_left'
-        segment_names = {'leg_l','foot_l'};
-    case 'ankle_right'
-        segment_names = {'foot_r'};
-    case 'ankle_left'
-        segment_names = {'foot_l'};
-    otherwise
-        error(['Invalid joint name:' joint_name]);
-end
-end
-
 function events = FindEvents(kinematics, kinetics, jump_type)
 
 

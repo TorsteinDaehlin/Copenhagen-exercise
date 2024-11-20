@@ -10,8 +10,7 @@ line_colors = {'r-','g-','b-'};
 global_ax = eye(3);
 
 % Define figure
-fig = figure('Name',[subj.id]);
-fig.WindowState = 'maximized';
+fig = figure('Name',[subj.id], 'Units', 'normalized', 'OuterPosition', [0 0 1 1], 'Visible', 'off');
 
 % Loop over regions of interest
 roi_mean = round(mean(roi, 2));
@@ -99,7 +98,6 @@ for k = 1:numel(roi_mean)
         'BackgroundColor','current');
 
     % Clear figure
-    pause(2);
     clf(fig);
 end
 

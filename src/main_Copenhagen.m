@@ -124,6 +124,7 @@ for s = 1:length(subj_dir)
     addpath('.\InverseDynamics\');
     addpath('.\InverseKinematics\');
     addpath('.\HelperFunctions\');
+    addpath('.\Postprocess\');
 
     % Preprocess input data
     [static, dynamic, meta] = PreprocessMOCAP(subj, marker_reg, flt);
@@ -171,9 +172,20 @@ for s = 1:length(subj_dir)
             PlotKinematicsChecks(time, kinematics, roi, subj, static.match_to_move(j));
             PlotNjmChecks(time, njm, dynamic(j).force(2), roi, subj, static.match_to_move(j));
 
-            % Extract results
+            % Store outputs
+            R.(strtok(subj.move_name{static.match_to_move(j)}, '.'))(s) = ...
+                PostprocessIvd(kinematics, dynamic(j).force(2), njm, subj, roi, meta.dynamic(j));
             
+            % Store time series
+            ts(s).(strtok(subj.move_name{static.match_to_move(j)}, '.')) = ...
+                PostprocessTimeSeries(time, kinematics, dynamic(j).force(2), ...
+                njm, roi);
+            ts(s).id = subj.id;
         end
     end
 end
+
+% Export data
+ExportResults()
+
 end

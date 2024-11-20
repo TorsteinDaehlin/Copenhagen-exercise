@@ -58,16 +58,18 @@ for i = 1:length(joint_names)
         end
 
         % Find moment arm of ground reaction force
-        if contains(prox_joints, joint_names{i})
-            r_grf = grf.cop(frame,:) - jc.([strtok(joint_names{i}, '_') ...
+        if any(contains(prox_joints, joint_names{i}))
+            r_grf(frame, :) = grf.cop(frame,:) - jc.([strtok(joint_names{i}, '_') ...
                 '_' strtok(joints.(joint_names{i}).child_frame, '_')])(frame,:);
+            c_free = 1;
         else
-            r_grf = [0 0 0];
+            r_grf(frame, :) = [0 0 0];
+            c_free = 0;
         end
 
         % Calculate net joint moment
         njm_global = sum((tau_I + tau),1) - ...
-            grf.free_moment(frame,:) - cross(r_grf,grf.force(frame,:));
+            grf.free_moment(frame,:) * c_free - cross(r_grf(frame,:),grf.force(frame,:));
 
         % Transform net joint moment into the coordiante system of the
         % distal segment

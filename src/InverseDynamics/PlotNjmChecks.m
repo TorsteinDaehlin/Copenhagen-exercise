@@ -6,7 +6,7 @@ cmap = flipud([cmap(1,:); cmap(4, :); cmap(8,:)]);
 
 % Create njm figure
 fig = figure('Name', [subj.id ' - trial ' subj.move_name{dynamic_nr}], ...
-    'WindowState', 'maximized');
+    'Units', 'normalized', 'OuterPosition', [0 0 1 1], 'Visible', 'off');
 
 % Get joint names
 joint_names = fieldnames(njm);
@@ -39,7 +39,7 @@ close(fig);
 
 % Create GRF and cop figure
 fig = figure('Name', [subj.id ' - trial ' subj.move_name{dynamic_nr}], ...
-    'WindowState', 'maximized');
+    'Units', 'normalized', 'OuterPosition', [0 0 1 1], 'Visible', 'off');
 
 for i = 1:n_roi
     subplot(3, n_roi, i);

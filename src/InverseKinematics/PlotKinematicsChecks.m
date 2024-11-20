@@ -32,7 +32,7 @@ cmap = flipud([cmap(1,:); cmap(4, :); cmap(8,:)]);
 
 % Plot segment COM position
 fig = figure('Name', [subj.id ' - trial ' subj.move_name{dynamic_nr}], ...
-    'WindowState','maximized');
+    'Units','normalized', 'OuterPosition', [0 0 1 1], 'Visible', 'off');
 
 % Get segment names and numbers of plots
 field_names = fieldnames(var);

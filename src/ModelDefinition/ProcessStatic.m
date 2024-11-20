@@ -38,8 +38,9 @@ axis_scale = 0.1;
 line_colors = {'r-','g-','b-'};
 
 % Define figure
-fig = figure('Name',['Static trial - ' subj.id]);
-fig.WindowState = 'maximized';
+fig = figure('Name',['Static trial - ' subj.id], 'Visible', 'off', 'Units', 'normalized', ...
+    'OuterPosition', [0 0 1 1]);
+
 
 % Plot global coordinate system
 global_ax = eye(3);
@@ -131,8 +132,7 @@ exportgraphics(fig, ...
     fullfile(subj.check_path, [subj.id '_static_' num2str(static_nr) '.jpg']), ...
     'BackgroundColor', 'current');
 
-% Display figure before closing
-pause(5);
+% Close figure
 close(fig);
 
 end

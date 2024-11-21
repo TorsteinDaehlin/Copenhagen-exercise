@@ -14,7 +14,7 @@
 % Author: Torstein Daehlin, PhD. August, 2024.                              
 %--------------------------------------------------------------------------
 
-function [subj_dir, data_path] = GetSubjDir()
+function [subj_dir, data_path, start_idx] = GetSubjDir()
 % Get data path
 start_path = regexp(pwd, filesep, 'split');
 start_path = fullfile(start_path{1:end-2});
@@ -31,4 +31,6 @@ subj_idx = listdlg('ListString',{subj_dir.name});
 % Shorten directory list and return
 subj_dir = subj_dir(subj_idx);
 
+% Output index of first selected participant
+start_idx = subj_idx(1);
 end

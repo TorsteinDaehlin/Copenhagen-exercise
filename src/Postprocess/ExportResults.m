@@ -15,7 +15,7 @@ for i = 1:length(trial_names)
 end
 
 % Save .mat files
-save(fullfile(dst_path, 'CHP_results.mat'), 'tbls');
-save(fullfile(dst_path, 'CHP_timeseries.mat'), 'ts');
+save(fullfile(dst_path, 'CPH_results.mat'), 'tbls');
+save(fullfile(dst_path, 'CPH_timeseries.mat'), 'ts');
 
 end

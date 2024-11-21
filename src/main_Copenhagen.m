@@ -44,20 +44,32 @@ function main_Copenhagen()
 
 % Initialize workspace
 % ====================
-
 % Add paths to dependencies
-addpath('.\Initialize\');
+addpath(['.' filesep 'Initialize' filesep]);
+addpath(['.' filesep 'Preproccess' filesep]);
+addpath(['.' filesep 'ModelDefinition' filesep]);
+addpath(['.' filesep 'InverseDynamics' filesep]);
+addpath(['.' filesep 'InverseKinematics' filesep]);
+addpath(['.' filesep 'HelperFunctions' filesep]);
+addpath(['.' filesep 'Postprocess' filesep]);
 
 % Prompt user to select participant directory
-[subj_dir, src_path] = GetSubjDir();
+[subj_dir, src_path, start_idx] = GetSubjDir();
 
 % Look for marker registration file in participant directory. If not there,
 % prompt user to open marker registration file
-if isfile(fullfile(subj_dir.folder,'model_setup.csv'))
-    marker_reg = readtable(fullfile(subj_dir.folder, 'model_setup.csv'));
+if isfile(fullfile(subj_dir(1).folder,'model_setup.csv'))
+    marker_reg = readtable(fullfile(subj_dir(1).folder, 'model_setup.csv'));
 else
     [reg_file, reg_path] = uigetfile('..\..\*.csv');
     marker_reg = readtable(fullfile(reg_path, reg_file));
+end
+
+% Look for participant characteristics file in participant directory
+if isfile(fullfile(subj_dir(1).folder, 'Copenhagen I - Participant Characteristics.xlsx'))
+    subj_char = readtable(fullfile(subj_dir(1).folder, 'Copenhagen I - Participant Characteristics.xlsx'), 'NumHeaderLines', 1);
+else
+    subj_char = [];
 end
 
 % Create output directory
@@ -79,8 +91,21 @@ end
 for s = 1:length(subj_dir)
     % Inspect participant directory
     % =============================
-    % Store dirctory as participant name
-    subj.id = subj_dir(s).name;
+    % Get subject characteristics
+    if ~isempty(subj_char)
+        subj.id = subj_char.Code{(start_idx + s) - 1};
+        subj.height = subj_char.Height((start_idx + s) - 1);
+        subj.mass = subj_char.BodyMass((start_idx + s) - 1);
+    else
+        subj.id = subj_dir(s).name;
+
+        % Prompt user to provide height and mass
+        prompt = {'Enter participant height (m):', ...
+            'Enter participant mass (kg):'};
+        answer = inputdlg(prompt, [subj.id ': Height and mass']);
+        subj.height = str2double(answer{1});
+        subj.mass = str2double(answer{2});
+    end
     
     % Create paths for subject outputs
     subj.out_path = fullfile(dst_path, subj.id);
@@ -92,13 +117,6 @@ for s = 1:length(subj_dir)
     if ~isfolder(subj.check_path)
         mkdir(subj.check_path);
     end
-
-    % Prompt user to provide height and mass
-    prompt = {'Enter participant height (m):', ...
-        'Enter participant mass (kg):'};
-    answer = inputdlg(prompt, [subj.id ': Height and mass']);
-    subj.height = str2double(answer{1});
-    subj.mass = str2double(answer{2});
 
     % Get directory contents
     motion_files = dir(fullfile(subj_dir(s).folder, subj_dir(s).name));
@@ -118,14 +136,6 @@ for s = 1:length(subj_dir)
 
     % Preprocess data
     % ===============
-    % Add path to dependencies
-    addpath('.\Preproccess\');
-    addpath('.\ModelDefinition\');
-    addpath('.\InverseDynamics\');
-    addpath('.\InverseKinematics\');
-    addpath('.\HelperFunctions\');
-    addpath('.\Postprocess\');
-
     % Preprocess input data
     [static, dynamic, meta] = PreprocessMOCAP(subj, marker_reg, flt);
 
@@ -150,7 +160,7 @@ for s = 1:length(subj_dir)
                 static_lcs, static_jc, segments, meta.dynamic(j));   
             
             % Determine which external forces are applied to which segments
-            roi = IdentifyROI(time, dynamic(j).force(2).force, subj, static.match_to_move(j));
+            roi = IdentifyROI(time, dynamic(j).force(2).force, kinematics.position.pelvis(:,3), subj, static.match_to_move(j));
             grf_act_on = ApplyForceToSegment(kinematics.jc, dynamic(j).force(2).cop, roi);
 
             if ~isequal(grf_act_on{:})
@@ -158,7 +168,7 @@ for s = 1:length(subj_dir)
             else
                 grf_act_on = grf_act_on{1};
             end
-            
+
             % Visualize dynamic trial
             PlotDynamic(dynamic(j).markers, kinematics, dynamic(j).force(2), ...
                 roi, subj, static.match_to_move(j));
@@ -186,6 +196,5 @@ for s = 1:length(subj_dir)
 end
 
 % Export data
-ExportResults()
-
+ExportResults(R, ts, dst_path);
 end

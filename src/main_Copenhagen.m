@@ -80,6 +80,13 @@ if ~isfolder(dst_path)
     mkdir(dst_path);
 end
 
+% Load previous results if they already exist
+if isfile(fullfile(dst_path, 'CPH_results.mat'))
+    load(fullfile(dst_path, 'CPH_results.mat'), 'tbls');
+else
+    tbls = struct('C_A', [], 'C_B', [], 'C_C', []);
+end
+
 % Requrest processing input (e.g. filter parameters)
 [static_id, flt] = GetProcessingParameters();
 
@@ -160,18 +167,36 @@ for s = 1:length(subj_dir)
                 static_lcs, static_jc, segments, meta.dynamic(j));   
             
             % Determine which external forces are applied to which segments
-            roi = IdentifyROI(time, dynamic(j).force(2).force, kinematics.position.pelvis(:,3), subj, static.match_to_move(j));
+            roi = IdentifyROI(time, dynamic(j).force(2).force, kinematics.position.thigh_r(:,3), subj, static(i).match_to_move(j));
             grf_act_on = ApplyForceToSegment(kinematics.jc, dynamic(j).force(2).cop, roi);
-
-            if ~isequal(grf_act_on{:})
-                error('COP segment mismatch');
-            else
-                grf_act_on = grf_act_on{1};
-            end
 
             % Visualize dynamic trial
             PlotDynamic(dynamic(j).markers, kinematics, dynamic(j).force(2), ...
-                roi, subj, static.match_to_move(j));
+                roi, subj, static(i).match_to_move(j));
+            
+            %  Error check grf_act_on
+            if ~isequal(grf_act_on{:})
+                warning('COP segment mismatch');
+
+                % Open figure
+                chck_figs = dir(fullfile(subj.check_path, ['*_dynamic_' num2str(static(i).match_to_move(j)) '_*']));
+                img = figure('WindowState','maximized');
+                for k = 1:length(chck_figs)
+                    subplot(1, length(chck_figs), k);
+                    I = imread(fullfile(chck_figs(k).folder, chck_figs(k).name));
+                    imshow(I);
+                end
+
+                % Prompt user to select appropriate segment
+                answer = listdlg('SelectionMode','single','PromptString', 'Select segment GRF acts on', ...
+                    'ListString', grf_act_on);
+                grf_act_on = grf_act_on{answer};
+
+                % Close figure
+                close(img);
+            else
+                grf_act_on = grf_act_on{1};
+            end
 
             % Calculate NJMs using inverse dynamics
             njm = ...
@@ -179,15 +204,15 @@ for s = 1:length(subj_dir)
                 joints, grf_act_on, meta.dynamic(j).nof);
 
             % Plot NJM data checks
-            PlotKinematicsChecks(time, kinematics, roi, subj, static.match_to_move(j));
-            PlotNjmChecks(time, njm, dynamic(j).force(2), roi, subj, static.match_to_move(j));
+            PlotKinematicsChecks(time, kinematics, roi, subj, static(i).match_to_move(j));
+            PlotNjmChecks(time, njm, dynamic(j).force(2), roi, subj, static(i).match_to_move(j));
 
             % Store outputs
-            R.(strtok(subj.move_name{static.match_to_move(j)}, '.'))(s) = ...
+            R.(strtok(subj.move_name{static(i).match_to_move(j)}, '.'))(s) = ...
                 PostprocessIvd(kinematics, dynamic(j).force(2), njm, subj, roi, meta.dynamic(j));
             
             % Store time series
-            ts(s).(strtok(subj.move_name{static.match_to_move(j)}, '.')) = ...
+            ts(s).(strtok(subj.move_name{static(i).match_to_move(j)}, '.')) = ...
                 PostprocessTimeSeries(time, kinematics, dynamic(j).force(2), ...
                 njm, roi);
             ts(s).id = subj.id;
@@ -196,5 +221,5 @@ for s = 1:length(subj_dir)
 end
 
 % Export data
-ExportResults(R, ts, dst_path);
+ExportResults(tbls, R, ts, dst_path);
 end

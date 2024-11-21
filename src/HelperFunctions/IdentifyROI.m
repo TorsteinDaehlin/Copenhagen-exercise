@@ -1,4 +1,4 @@
-function  [roi] = IdentifyROI(t, grf, pelvis_pos, subj, dynamic_nr)
+function  [roi] = IdentifyROI(t, grf, pos, subj, dynamic_nr)
 
 % Truncate force signal
 grf_norm = grf ./ (subj.mass * 9.81);
@@ -22,7 +22,7 @@ roi = reshape(idx(1) + roi, 2, [])';
 iscorrect = false;
 while ~iscorrect
     % Plot current ROis
-    fig = PlotROIs(t, grf_norm, pelvis_pos, roi);
+    fig = PlotROIs(t, grf_norm, pos, roi);
 
     answer = questdlg('Are regions of interest identified correctly?', ...
         'ROI', 'Yes', 'No', 'No');
@@ -42,7 +42,7 @@ while ~iscorrect
         p(2).Color = cmap(2,:);
         p(3).Color = cmap(3,:);
         yyaxis right;
-        plot(pelvis_pos, 'k');
+        plot(pos, 'k');
         xlabel('Sample (nr)');
         ylabel('Force (N/kg)');
         hold on;
@@ -76,7 +76,7 @@ close(fig);
 
 end
 
-function fig = PlotROIs(t, grf_norm, pelvis_pos, roi)
+function fig = PlotROIs(t, grf_norm, pos, roi)
 
 % Create data check figure
 cmap = parula(9);
@@ -89,7 +89,7 @@ for i = 1:c
     hold on;
 end
 yyaxis right;
-plot(t, pelvis_pos, 'k-');
+plot(t, pos, 'k-');
 yyaxis left;
 
 for j = 1:size(roi, 1)

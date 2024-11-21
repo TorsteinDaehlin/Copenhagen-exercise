@@ -13,7 +13,7 @@ for i = 1:length(segment_names)
         % Define rotation matrix
         R = [dynamic_lcs.(segment_names{i}).epx(frame,:)' dynamic_lcs.(segment_names{i}).epy(frame,:)' ...
             dynamic_lcs.(segment_names{i}).epz(frame,:)'];
-        [x_angle, y_angle, z_angle] = EulerAngles(R,'zyx','deg');
+        [x_angle, y_angle, z_angle] = EulerAngles(R,'yzx','deg');
 
         % Assign output
         segment_angles.(segment_names{i})(frame,:) = [x_angle y_angle z_angle];
@@ -79,7 +79,8 @@ for i = 1:length(joint_names)
             end
 
             % Calculate joint angles
-            R = (R_prox_static'*R_prox)'*(R_dist_static'*R_dist);
+            % R = (R_prox_static'*R_prox)'*(R_dist_static'*R_dist);
+            R = R_prox' * R_dist;
             [x_angle(frame,:), y_angle(frame,:), z_angle(frame,:)] = EulerAngles(R,'xyz','deg');
         end
 

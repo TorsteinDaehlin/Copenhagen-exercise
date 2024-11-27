@@ -19,6 +19,7 @@ joints = ConnectJoints(static_jc, 'pelvis');
 
 % Define segment parameters
 segment_names = fieldnames(static_lcs);
+segment_names(contains(segment_names, {'v_foot_'})) = [];
 segments = DefineSegments(markers, static_lcs, static_jc, subj, segment_names);
 
 % Plot static trial
@@ -134,5 +135,6 @@ exportgraphics(fig, ...
 
 % Close figure
 close(fig);
+
 
 end

@@ -183,7 +183,7 @@ for s = 1:length(subj_dir)
                 warning('COP segment mismatch');
 
                 % Open figure
-                chck_figs = dir(fullfile(subj.check_path, ['*_dynamic_' num2str(static(i).match_to_move(j)) '_*']));
+                chck_figs = dir(fullfile(subj.check_path, ['*_dynamic_' num2str(static(i).match_to_move(j)) '_*.jpg']));
                 img = figure('WindowState','maximized');
                 for k = 1:length(chck_figs)
                     subplot(1, length(chck_figs), k);

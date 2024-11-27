@@ -40,7 +40,7 @@ x_mean = mean(x_data,2);
 y_mean = mean(y_data,2);
 
 % Compute cluster model position matrix
-for i = 1:size(x_data,2)
+for i = 1:size(y_data,2)
     X(:,i) = x_data(:,i) - x_mean;
     Y(:,i) = y_data(:,i) - y_mean;
 end

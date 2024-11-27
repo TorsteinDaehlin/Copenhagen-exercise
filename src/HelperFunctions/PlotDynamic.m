@@ -93,6 +93,9 @@ for k = 1:numel(roi_mean)
     title(trial_name);
 
     % Save figure as data check
+    fig.Visible = 'on';
+    savefig(fig, fullfile(subj.check_path, [subj.id '_dynamic_' num2str(dynamic_nr) ...
+        '_' num2str(k) '.fig']));
     exportgraphics(fig, fullfile(subj.check_path, [subj.id '_dynamic_' num2str(dynamic_nr) ...
         '_' num2str(k) '.jpg']), ...
         'BackgroundColor','current');

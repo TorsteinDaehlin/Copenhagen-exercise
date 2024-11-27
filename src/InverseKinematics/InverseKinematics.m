@@ -5,7 +5,7 @@ nof = meta.nof;
 time = (1:nof)'./ meta.fs;
 
 % Perform pose estimation
-segment_names = fieldnames(segments);
+segment_names = fieldnames(static_lcs);
 [dynamic_lcs, jc] = PoseEstimation(dynamic_markers, static_markers, ...
     static_lcs, segment_names, static_jc, nof);
 

@@ -5,8 +5,12 @@ marker_names = fieldnames(dynamic_markers);
 
 for i = 1:length(segment_names)
     % Get the names of the markers attached to the segments
-    segment_markers = marker_names(contains(marker_names, segment_names(i)));
-    
+    if strcmp(segment_names(i), 'v_foot_r')
+        segment_markers = marker_names(contains(marker_names, extractAfter(segment_names(i), '_')));
+    else
+        segment_markers = marker_names(contains(marker_names, segment_names(i)));
+    end
+
     % Perform pose estimation for segment
     dynamic_lcs.(segment_names{i}) = ...
         DynamicLcs(dynamic_markers, static_markers, segment_markers, ...

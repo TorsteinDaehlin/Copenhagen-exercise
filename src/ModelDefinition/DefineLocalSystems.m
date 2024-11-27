@@ -16,6 +16,9 @@ function [lcs, jc] = DefineLocalSystems(markers)
 [lcs.foot_r, jc] = DefineFootLcs(markers, jc, 1, 'right');
 % lcs.foot_l = DefineFootLcs(markers, 1, 'left');
 
+% Define vertical foot coordinate system
+[lcs.v_foot_r] = DefineVerticalFootLcs(markers, 1, 'right');
+
 % Define rearfoot coordinate systems
 % lcs.rearfoot_r = DefineRearfootLcs(markers, 1, 'right');
 % lcs.rearfoot_l = DefineRearfootLcs(markers, 1, 'left');

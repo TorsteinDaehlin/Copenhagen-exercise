@@ -61,10 +61,10 @@ for i = 1:length(joint_names)
                         dynamic_lcs.(['leg' post_script]).epz(frame,:)'];
                     R_prox_static = [static_lcs.(['leg' post_script]).epx' static_lcs.(['leg' post_script]).epy' ...
                         static_lcs.(['leg' post_script]).epz'];
-                    R_dist = [dynamic_lcs.(['foot' post_script]).epx(frame,:)' dynamic_lcs.(['foot' post_script]).epy(frame,:)' ...
-                        dynamic_lcs.(['foot' post_script]).epz(frame,:)'];
-                    R_dist_static = [static_lcs.(['foot' post_script]).epx' static_lcs.(['foot' post_script]).epy' ...
-                        static_lcs.(['foot' post_script]).epz'];
+                    R_dist = [dynamic_lcs.(['v_foot' post_script]).epx(frame,:)' dynamic_lcs.(['v_foot' post_script]).epy(frame,:)' ...
+                        dynamic_lcs.(['v_foot' post_script]).epz(frame,:)'];
+                    R_dist_static = [static_lcs.(['v_foot' post_script]).epx' static_lcs.(['v_foot' post_script]).epy' ...
+                        static_lcs.(['v_foot' post_script]).epz'];
                 case 'midfoot'
                     R_prox = [dynamic_lcs.(['rearfoot' post_script]).epx(frame,:)' dynamic_lcs.(['rearfoot' post_script]).epy(frame,:)' ...
                         dynamic_lcs.(['rearfoot' post_script]).epz(frame,:)'];
@@ -79,8 +79,7 @@ for i = 1:length(joint_names)
             end
 
             % Calculate joint angles
-            % R = (R_prox_static'*R_prox)'*(R_dist_static'*R_dist);
-            R = R_prox' * R_dist;
+            R = (R_prox_static'*R_prox)'*(R_dist_static'*R_dist);
             [x_angle(frame,:), y_angle(frame,:), z_angle(frame,:)] = EulerAngles(R,'xyz','deg');
         end
 

@@ -68,8 +68,10 @@ end
 % Look for participant characteristics file in participant directory
 if isfile(fullfile(subj_dir(1).folder, 'Copenhagen I - Participant Characteristics.xlsx'))
     subj_char = readtable(fullfile(subj_dir(1).folder, 'Copenhagen I - Participant Characteristics.xlsx'), 'NumHeaderLines', 1);
+    subj_list = subj_char.Code;
 else
     subj_char = [];
+    subj_list = {};
 end
 
 % Create output directory
@@ -105,13 +107,15 @@ for s = 1:length(subj_dir)
         subj.mass = subj_char.BodyMass((start_idx + s) - 1);
     else
         subj.id = subj_dir(s).name;
-
+        
         % Prompt user to provide height and mass
         prompt = {'Enter participant height (m):', ...
             'Enter participant mass (kg):'};
         answer = inputdlg(prompt, [subj.id ': Height and mass']);
         subj.height = str2double(answer{1});
         subj.mass = str2double(answer{2});
+
+        subj_list{end} = subj.id;
     end
     
     % Create paths for subject outputs
@@ -221,5 +225,5 @@ for s = 1:length(subj_dir)
 end
 
 % Export data
-ExportResults(tbls, R, ts, dst_path);
+ExportResults(tbls, R, ts, dst_path, subj_list);
 end

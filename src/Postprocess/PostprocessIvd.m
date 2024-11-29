@@ -24,6 +24,11 @@ for i = 1:n_roi
         R.(['ankle_njm_' dims{j} '_' num2str(i)]) = mean(njm.ankle_r(idx, j) ./ subj.mass);
 
         % Extract kinematics
+        R.(['pelvis_ang_' dims{j} '_' num2str(i)]) = mean(kinematics.segment_angles.pelvis(idx, j));
+        R.(['thigh_ang_' dims{j} '_' num2str(i)]) = mean(kinematics.segment_angles.thigh_r(idx, j));
+        R.(['leg_ang_' dims{j} '_' num2str(i)]) = mean(kinematics.segment_angles.leg_r(idx, j));
+        R.(['foot_ang_' dims{j} '_' num2str(i)]) = mean(kinematics.segment_angles.v_foot_r(idx, j));
+
         R.(['hip_ang_' dims{j} '_' num2str(i)]) = mean(kinematics.joint_angles.hip.right(idx, j));
         R.(['knee_ang_' dims{j} '_' num2str(i)]) = mean(kinematics.joint_angles.knee.right(idx, j));
         R.(['ankle_ang_' dims{j} '_' num2str(i)]) = mean(kinematics.joint_angles.ankle.right(idx, j));

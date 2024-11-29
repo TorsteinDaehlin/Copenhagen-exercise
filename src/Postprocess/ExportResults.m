@@ -17,12 +17,12 @@ for i = 1:length(trial_names)
     tbls.(trial_names{i}) = sortrows(tbls.(trial_names{i}), 'id');
 
     % Write tables to excel spreadsheet
-    writetable(tbls.(trial_names{i}), fullfile(dst_path, 'CPH_results.xlsx'), ...
+    writetable(tbls.(trial_names{i}), fullfile(dst_path, 'CPH_results_all_reps.xlsx'), ...
         'Sheet', trial_names{i});
 end
 
 % Save .mat files
-save(fullfile(dst_path, 'CPH_results.mat'), 'tbls');
+save(fullfile(dst_path, 'CPH_results_all_reps.mat'), 'tbls');
 save(fullfile(dst_path, 'CPH_timeseries.mat'), 'ts');
 
 end

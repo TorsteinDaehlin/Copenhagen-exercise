@@ -17,7 +17,7 @@
 function [subj_dir, data_path, start_idx] = GetSubjDir()
 % Get data path
 start_path = regexp(pwd, filesep, 'split');
-start_path = fullfile(start_path{1:end-2});
+start_path = fullfile(start_path{1:end-1});
 
 data_path = uigetdir(start_path, 'Select data directory');
 

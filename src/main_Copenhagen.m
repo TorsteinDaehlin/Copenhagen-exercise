@@ -97,133 +97,141 @@ if isempty(static_id) || isempty(flt)
     [static_id, flt] = GetProcessingParameters();
 end
 
-for s = 1:length(subj_dir)
-    % Inspect participant directory
-    % =============================
-    % Get subject characteristics
-    if ~isempty(subj_char)
-        subj.id = subj_char.Code{(start_idx + s) - 1};
-        subj.height = subj_char.Height((start_idx + s) - 1);
-        subj.mass = subj_char.BodyMass((start_idx + s) - 1);
-    else
-        subj.id = subj_dir(s).name;
-        
-        % Prompt user to provide height and mass
-        prompt = {'Enter participant height (m):', ...
-            'Enter participant mass (kg):'};
-        answer = inputdlg(prompt, [subj.id ': Height and mass']);
-        subj.height = str2double(answer{1});
-        subj.mass = str2double(answer{2});
+try
+    for s = 1:length(subj_dir)
+        % Inspect participant directory
+        % =============================
+        % Get subject characteristics
+        if ~isempty(subj_char)
+            subj.id = subj_char.Code{(start_idx + s) - 1};
+            subj.height = subj_char.Height((start_idx + s) - 1);
+            subj.mass = subj_char.BodyMass((start_idx + s) - 1);
+        else
+            subj.id = subj_dir(s).name;
 
-        subj_list{end} = subj.id;
-    end
-    
-    % Create paths for subject outputs
-    subj.out_path = fullfile(dst_path, subj.id);
-    if ~isfolder(subj.out_path)
-        mkdir(subj.out_path);
-    end
+            % Prompt user to provide height and mass
+            prompt = {'Enter participant height (m):', ...
+                'Enter participant mass (kg):'};
+            answer = inputdlg(prompt, [subj.id ': Height and mass']);
+            subj.height = str2double(answer{1});
+            subj.mass = str2double(answer{2});
 
-    subj.check_path = fullfile(subj.out_path, 'DataChecks');
-    if ~isfolder(subj.check_path)
-        mkdir(subj.check_path);
-    end
+            subj_list{end} = subj.id;
+        end
 
-    % Get directory contents
-    motion_files = dir(fullfile(subj_dir(s).folder, subj_dir(s).name));
-    motion_files = motion_files(~(strcmp({motion_files.name}, {'.'}) | ...
-        strcmp({motion_files.name}, {'..'})));
+        % Create paths for subject outputs
+        subj.out_path = fullfile(dst_path, subj.id);
+        if ~isfolder(subj.out_path)
+            mkdir(subj.out_path);
+        end
 
-    % Error check input
-    static_idx = contains({motion_files.name}, static_id);
-    if ~any(static_idx)
-        error('No static trial whose file name contains "%s".', static_id);
-    end
+        subj.check_path = fullfile(subj.out_path, 'DataChecks');
+        if ~isfolder(subj.check_path)
+            mkdir(subj.check_path);
+        end
 
-    % Get file name(s) and directories
-    subj.data_path = motion_files(1).folder;
-    subj.static_name = {motion_files(static_idx).name};
-    subj.move_name = {motion_files(~static_idx).name};
+        % Get directory contents
+        motion_files = dir(fullfile(subj_dir(s).folder, subj_dir(s).name));
+        motion_files = motion_files(~(strcmp({motion_files.name}, {'.'}) | ...
+            strcmp({motion_files.name}, {'..'})));
 
-    % Preprocess data
-    % ===============
-    % Preprocess input data
-    [static, dynamic, meta] = PreprocessMOCAP(subj, marker_reg, flt);
+        % Error check input
+        static_idx = contains({motion_files.name}, static_id);
+        if ~any(static_idx)
+            error('No static trial whose file name contains "%s".', static_id);
+        end
 
-    % Transform force to top of stand (the easiest way to achieve this may be to simply add this as a rigid body
-    % to the model. Since there is not angular velocity of the stand, point of force application should be possible to find)
-    dynamic = TransformToStand(dynamic);
+        % Get file name(s) and directories
+        subj.data_path = motion_files(1).folder;
+        subj.static_name = {motion_files(static_idx).name};
+        subj.move_name = {motion_files(~static_idx).name};
 
-    % Run inverse dynamics procedure
-    % ==============================
-    for i = 1:length(static)
-        % Generate participant model
-        % --------------------------
-        [static_lcs, static_jc, segments, joints] = ...
-            ProcessStatic(static(i), meta.static(i), subj, i);
+        % Preprocess data
+        % ===============
+        % Preprocess input data
+        [static, dynamic, meta] = PreprocessMOCAP(subj, marker_reg, flt);
 
-        % Loop over dynamic trials matched to current static
-        for j = 1:length(static.match_to_move)
+        % Transform force to top of stand (the easiest way to achieve this may be to simply add this as a rigid body
+        % to the model. Since there is not angular velocity of the stand, point of force application should be possible to find)
+        dynamic = TransformToStand(dynamic);
 
-            % Perform inverse kinematics
-            [kinematics, time] = ...
-                InverseKinematics(dynamic(j).markers, static(i).markers, ...
-                static_lcs, static_jc, segments, meta.dynamic(j));   
-            
-            % Determine which external forces are applied to which segments
-            roi = IdentifyROI(time, dynamic(j).force(2).force, kinematics.position.thigh_r(:,3), subj, static(i).match_to_move(j));
-            grf_act_on = ApplyForceToSegment(kinematics.jc, dynamic(j).force(2).cop, roi);
+        % Run inverse dynamics procedure
+        % ==============================
+        for i = 1:length(static)
+            % Generate participant model
+            % --------------------------
+            [static_lcs, static_jc, segments, joints] = ...
+                ProcessStatic(static(i), meta.static(i), subj, i);
 
-            % Visualize dynamic trial
-            PlotDynamic(dynamic(j).markers, kinematics, dynamic(j).force(2), ...
-                roi, subj, static(i).match_to_move(j));
-            
-            %  Error check grf_act_on
-            if ~isequal(grf_act_on{:})
-                warning('COP segment mismatch');
+            % Loop over dynamic trials matched to current static
+            for j = 1:length(static.match_to_move)
 
-                % Open figure
-                chck_figs = dir(fullfile(subj.check_path, ['*_dynamic_' num2str(static(i).match_to_move(j)) '_*.jpg']));
-                img = figure('WindowState','maximized');
-                for k = 1:length(chck_figs)
-                    subplot(1, length(chck_figs), k);
-                    I = imread(fullfile(chck_figs(k).folder, chck_figs(k).name));
-                    imshow(I);
+                % Perform inverse kinematics
+                [kinematics, time] = ...
+                    InverseKinematics(dynamic(j).markers, static(i).markers, ...
+                    static_lcs, static_jc, segments, meta.dynamic(j));
+
+                % Determine which external forces are applied to which segments
+                roi = IdentifyROI(time, dynamic(j).force(2).force, kinematics.position.thigh_r(:,3), subj, static(i).match_to_move(j));
+                grf_act_on = ApplyForceToSegment(kinematics.jc, dynamic(j).force(2).cop, roi);
+
+                % Visualize dynamic trial
+                PlotDynamic(dynamic(j).markers, kinematics, dynamic(j).force(2), ...
+                    roi, subj, static(i).match_to_move(j));
+
+                %  Error check grf_act_on
+                if ~isequal(grf_act_on{:})
+                    warning('COP segment mismatch');
+
+                    % Open figure
+                    chck_figs = dir(fullfile(subj.check_path, ['*_dynamic_' num2str(static(i).match_to_move(j)) '_*.jpg']));
+                    img = figure('WindowState','maximized');
+                    for k = 1:length(chck_figs)
+                        subplot(1, length(chck_figs), k);
+                        I = imread(fullfile(chck_figs(k).folder, chck_figs(k).name));
+                        imshow(I);
+                    end
+
+                    % Prompt user to select appropriate segment
+                    answer = listdlg('SelectionMode','single','PromptString', 'Select segment GRF acts on', ...
+                        'ListString', grf_act_on);
+                    grf_act_on = grf_act_on{answer};
+
+                    % Close figure
+                    close(img);
+                else
+                    grf_act_on = grf_act_on{1};
                 end
 
-                % Prompt user to select appropriate segment
-                answer = listdlg('SelectionMode','single','PromptString', 'Select segment GRF acts on', ...
-                    'ListString', grf_act_on);
-                grf_act_on = grf_act_on{answer};
+                % Calculate NJMs using inverse dynamics
+                njm = ...
+                    calcJointMoments(segments, kinematics, dynamic(j).force(2), ...
+                    joints, grf_act_on, meta.dynamic(j).nof);
 
-                % Close figure
-                close(img);
-            else
-                grf_act_on = grf_act_on{1};
+                % Plot NJM data checks
+                PlotKinematicsChecks(time, kinematics, roi, subj, static(i).match_to_move(j));
+                PlotNjmChecks(time, njm, dynamic(j).force(2), roi, subj, static(i).match_to_move(j));
+
+                % Store outputs
+                R.(strtok(subj.move_name{static(i).match_to_move(j)}, '.'))(s) = ...
+                    PostprocessIvd(kinematics, dynamic(j).force(2), njm, subj, roi, meta.dynamic(j));
+
+                % Store time series
+                ts(s).(strtok(subj.move_name{static(i).match_to_move(j)}, '.')) = ...
+                    PostprocessTimeSeries(time, kinematics, dynamic(j).force(2), ...
+                    njm, roi);
+                ts(s).id = subj.id;
             end
-
-            % Calculate NJMs using inverse dynamics
-            njm = ...
-                calcJointMoments(segments, kinematics, dynamic(j).force(2), ...
-                joints, grf_act_on, meta.dynamic(j).nof);
-
-            % Plot NJM data checks
-            PlotKinematicsChecks(time, kinematics, roi, subj, static(i).match_to_move(j));
-            PlotNjmChecks(time, njm, dynamic(j).force(2), roi, subj, static(i).match_to_move(j));
-
-            % Store outputs
-            R.(strtok(subj.move_name{static(i).match_to_move(j)}, '.'))(s) = ...
-                PostprocessIvd(kinematics, dynamic(j).force(2), njm, subj, roi, meta.dynamic(j));
-            
-            % Store time series
-            ts(s).(strtok(subj.move_name{static(i).match_to_move(j)}, '.')) = ...
-                PostprocessTimeSeries(time, kinematics, dynamic(j).force(2), ...
-                njm, roi);
-            ts(s).id = subj.id;
         end
     end
-end
+    % Export data
+    ExportResults(tbls, R, ts, dst_path, subj_list);
 
-% Export data
-ExportResults(tbls, R, ts, dst_path, subj_list);
+catch
+    % Print warning message
+    warning('Error occured while processing data from participant %s. Exiting.', subj.id);
+
+    % Export results to current point
+    ExportResults(tbls, R, ts, dst_path, subj_list);
+end
 end

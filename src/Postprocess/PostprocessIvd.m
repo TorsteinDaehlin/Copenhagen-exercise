@@ -17,6 +17,11 @@ for i = 1:n_roi
     begin = roi(i,1) + round(((roi(i,2) - roi(i,1))/2) - h/2);
     idx = begin:begin+h;
 
+    % Resultant moment
+    R.(['hip_njm_resultant_local_' num2str(i)]) = mean(vecnorm(njm.hip_r(idx, :) ./ subj.mass, 2, 2));
+    R.(['knee_njm_resultant_local_' num2str(i)]) = mean(vecnorm(njm.knee_r(idx, :) ./ subj.mass, 2, 2));
+    R.(['ankle_njm_resultant_local_' num2str(i)]) = mean(vecnorm(njm.ankle_r(idx, :) ./ subj.mass, 2, 2));
+
     for j = 1:length(dims)
         % Extract NJM
         R.(['hip_njm_' dims{j} '_' num2str(i)]) = mean(njm.hip_r(idx, j) ./ subj.mass);

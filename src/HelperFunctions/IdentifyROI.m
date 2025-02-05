@@ -16,6 +16,9 @@ roi = findchangepts(movmean(grf_norm(idx(1):idx(2), 3), 50), 'MaxNumChanges', 6)
 
 % Reshape ideces so the first column contains the start of a region of
 % interest and the second constains the end of a region of interst
+if mod(numel(roi), 2) ~= 0
+    roi = [roi; roi(end)];
+end
 roi = reshape(idx(1) + roi, 2, [])';
 
 % Prompt user to decide if ROIs are correct

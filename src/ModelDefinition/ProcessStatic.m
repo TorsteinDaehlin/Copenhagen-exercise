@@ -4,7 +4,8 @@ function [static_lcs, static_jc, segments, joints] = ProcessStatic(static, meta,
 nof = meta.nof;
 frame_rate = meta.fs;
 
-% Reduce static markers and define anatomical coordinate systems
+% If the static trial contains more than one frame, we average the marker
+% positions in the middle sample_rate / 2 portion of the static trial
 markers = static.markers;
 marker_names = fieldnames(markers);
 for i = 1:length(marker_names)

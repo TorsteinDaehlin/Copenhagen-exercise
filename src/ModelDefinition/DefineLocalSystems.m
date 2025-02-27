@@ -1,7 +1,7 @@
 function [lcs, jc] = DefineLocalSystems(markers)
 
 % Define pelvis system
-% Use ISB recommendation + Harrington et al. 2007 for joint centres
+% Uses ISB recommendation + Harrington et al. 2007 for joint centres
 [lcs.pelvis, jc] = DefinePelvisLcs(markers, 1);
 
 % Define thigh systems

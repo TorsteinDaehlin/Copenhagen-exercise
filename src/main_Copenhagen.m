@@ -34,7 +34,35 @@
 % References:
 % -----------
 %{
+Cappozzo A, Catani F, Della Croce U, Leardini A. (1995) Position and
+    orientation in space of bones during movement: anatomical frame definition
+    and determination. Clin Biomech. 10(17), pp 1–8.
 
+Cappozzo, A., Cappello, A., Croce, U. D., & Pensalfini, F. (1997)
+    Surface-marker cluster design criteria for 3-D bone movement
+    reconstruction. IEEE Transactions on Biomedical Engineering, 44(12),
+    1165-1174.
+
+Della Croce U, Cappozzo A, Kerrigan DC. (1999) Pelvis and lower limb
+    anatomical landmark calibration precision and its propaga- tion to bone
+    geometry and joint angles. Med Biol Eng Comp. 37, pp 155–161.
+
+Dempster, W. T. (1955) Space requirements of the seated operator,
+    geometrical, kinematic, and mechanical aspects of the body with special
+    reference to the limbs. University of Michigan.
+
+Grood, E. S., & Suntay, W. J. (1983) A joint coordinate system for the
+    clinical description of three-dimensional motions: Application to the knee.
+    Journal of Biomechanical Engineering, 105(2), 136–144.
+
+Söderkvist, I., & Wedin, P. Å. (1993) Determining the movements of the
+    skeleton using well-configured markers. Journal of biomechanics, 26(12),
+    1473-1477.
+
+Wu G, Siegler S, Allard P, Kirtley C, Leardini A, Rosenbaum D, et al.
+    (2002) ISB recommendation on definitions of joint coordinate system of
+    various joints for the reporting of human joint motion. Part 1: ankle, hip,
+    and spine. J Biomech. 35, pp 543–548.
 
 %}
 %
@@ -169,14 +197,11 @@ try
             % Generate participant model
             % --------------------------
             % We generate one model per static recording in the participant
-            % folder. If there is more than one, multiple static trials
-            % will be used. the field "match_to_move" in the static
-            % structure is used to determine which dynamic trial should be
-            % matched to the current static trial.
+            % folder. See PreprocessMOCAP() for details on how multiple
+            % static trials are handled.
             [static_lcs, static_jc, segments, joints] = ...
                 ProcessStatic(static(i), meta.static(i), subj, i);
 
-            % Loop over dynamic trials matched to current static
             for j = 1:length(static.match_to_move)
 
                 % Perform inverse kinematics
@@ -184,11 +209,13 @@ try
                     InverseKinematics(dynamic(j).markers, static(i).markers, ...
                     static_lcs, static_jc, segments, meta.dynamic(j));
 
-                % Determine which external forces are applied to which segments
+                % We attempt to automatically detect the regions of
+                % interest and apply the stand reaction force to the
+                % appropriate segment. Plots are then procduced and the
+                % user is asked to verify ROIs and segemnet allocation.
                 roi = IdentifyROI(time, dynamic(j).force(2).force, kinematics.position.thigh_r(:,3), subj, static(i).match_to_move(j));
                 grf_act_on = ApplyForceToSegment(kinematics.jc, dynamic(j).force(2).cop, roi);
 
-                % Visualize dynamic trial
                 PlotDynamic(dynamic(j).markers, kinematics, dynamic(j).force(2), ...
                     roi, subj, static(i).match_to_move(j));
 
@@ -216,7 +243,10 @@ try
                     grf_act_on = grf_act_on{1};
                 end
 
-                % Calculate NJMs using inverse dynamics
+                % Newton-Euler iterative inverse dynamic are used to
+                % compute net joint moments which are expressed in the
+                % coordinate system of the distal ("child") segment of each
+                % joint. 
                 njm = ...
                     calcJointMoments(segments, kinematics, dynamic(j).force(2), ...
                     joints, grf_act_on, meta.dynamic(j).nof);

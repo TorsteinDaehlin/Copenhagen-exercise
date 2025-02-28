@@ -41,7 +41,8 @@ for i = 1:length(subj.move_name)
 end
 
 if length(static) > 1
-    % Prompt user to assign static file to distinct moving trials
+    % If there is more than one static file, we prompt the user to select
+    % the moving trials that should be matched to the current static trial
     for i = 1:length(static)
         static_name = ['Static ' num2str(i)];
         idx = listdlg('ListString', subj.move_name, 'PromptString', ...
@@ -49,7 +50,8 @@ if length(static) > 1
         static(i).match_to_move = idx;
     end
 else
-    % Assume that all moving trials should be matched to the static trial
+    % Otherwise, we assume that all moving trials should be matched to the
+    % static trial
     static.match_to_move = 1:length(subj.move_name);
 end
 

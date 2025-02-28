@@ -1,29 +1,4 @@
 function dydx = FiniteDiff(y,h,varagin)
-% finiteDiff.m
-% -------------------------------------------------------------------------
-% Differentiates the equally spaced dependent variables y = f(x) using a
-% finite difference scheme. The function can return the first or second
-% derivative of y.
-% -------------------------------------------------------------------------
-% Syntax and description:
-% dydx = finiteDiff(y,h) returns the first derivative of the input array y
-% = f(x) with equally spaced steps specified by the step size h.
-%
-% dydx = finiteDiff(y,h,order) returns the derivative of the specified
-% order. The input argument 'order' can take values 1 or 2, returning the
-% first or second order derivative, respectively.
-%
-% The first-order method utilizes a two-sided two-point scheme to calculate
-% intermediate points, while one-sided forward and backward two-point
-% schemes is used to calculate the first and last data point, respectively.
-%
-% The second-order method utilizes a two-sided three-point scheme to
-% calculate intermediate points, while one-sided forward and backward
-% three-point schemes is used to calculate the first and last data point,
-% respectively.
-% -------------------------------------------------------------------------
-% Written by Torstein E. Daehlin, August 2019
-% -------------------------------------------------------------------------
 
 % Detect and assigne variable input arguments
 nargs = nargin;

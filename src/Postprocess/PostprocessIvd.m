@@ -43,9 +43,6 @@ for i = 1:n_roi
     end
 end
 
-% Average over repetitions
-% R = structfun(@(x) mean(x), R, 'UniformOutput', false);
-
 % Rearrange fields in alphabetical order
 R = orderfields(R);
 

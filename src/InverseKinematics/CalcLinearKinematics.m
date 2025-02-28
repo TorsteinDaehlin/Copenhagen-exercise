@@ -15,7 +15,8 @@ for i = 1:length(segment_names)
         position.(segment_names{i})(j,:) = (R*segments.(segment_names{i}).com' + dynamic_lcs.(segment_names{i}).origin(j,:)')';
     end
 
-    % Find velocity and acceleration
+    % We use finite differencing to calculate derivatives of the centre of
+    % mass positions.
     h = time(2) - time(1);
     velocity.(segment_names{i}) = FiniteDiff(position.(segment_names{i}),h,1);
     acceleration.(segment_names{i}) = FiniteDiff(position.(segment_names{i}),h,2);

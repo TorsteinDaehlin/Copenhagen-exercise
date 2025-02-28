@@ -1,10 +1,9 @@
 function [kinematics, time] = InverseKinematics(dynamic_markers, static_markers, static_lcs, static_jc, segments, meta)
 
-% Get temporal characteristics
 nof = meta.nof;
 time = (1:nof)'./ meta.fs;
 
-% Perform pose estimation
+% Pose estimation
 segment_names = fieldnames(static_lcs);
 [dynamic_lcs, jc] = PoseEstimation(dynamic_markers, static_markers, ...
     static_lcs, segment_names, static_jc, nof);
@@ -13,7 +12,8 @@ segment_names = fieldnames(static_lcs);
 [position, velocity, acceleration] = ...
     CalcLinearKinematics(segments, dynamic_lcs, time, nof);
 
-% Compute angular kinematics
+% Euler angles are used to calculate the angular kinematics of segments and
+% joints
 [segment_angles, joint_angles, angular_velocity, angular_acceleration] = ...
     calcAngularKinematics(dynamic_lcs, static_lcs, nof, time);
 

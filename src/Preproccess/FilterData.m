@@ -1,24 +1,10 @@
 function filtered_data = FilterData(raw_data, filter_parameters, data_type)
 
-% Construct filter coefficients for butterworth filter
+% Constructs filter coefficients for filter. Additional filter types may be
+% supported by adding cases in this switch statement
 switch filter_parameters.type
     case 'Butterworth'
         [B, A] = butter(filter_parameters.order/2, ...
-            filter_parameters.fc/(filter_parameters.fs/2), ...
-            'low');
-
-    case 'Chebyshev I'
-        [B, A] = cheby1(filter_parameters.order/2, ...
-            filter_parameters.fc/(filter_parameters.fs/2), ...
-            'low');
-
-    case 'Chebyshev II'
-        [B, A] = cheby2(filter_parameters.order/2, ...
-            filter_parameters.fc/(filter_parameters.fs/2), ...
-            'low');
-
-    case 'Ellipse'
-        [B, A] = ellip(filter_parameters.order/2, ...
             filter_parameters.fc/(filter_parameters.fs/2), ...
             'low');
 

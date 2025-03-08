@@ -1,34 +1,4 @@
 function [pelvis_lcs, jc] = DefinePelvisLcs(markers, nof)
-% DefinePelvisLcs
-% -------------------------------------------------------------------------
-% Defines the local coordinate system of the pelvis segement in accordance
-% with Cappozzo et al. 1995, Della Croce et al. 1999, and Wu et al. 2002.
-% -------------------------------------------------------------------------
-% Syntax and description: plevis_local_coordinate_system =
-% DefinePelvisLcs(markers, number_of_frames) returns a structure containing
-% time series for origin and local coordiante system axes of the pelvis.
-% The function takes the structure 'markers' containing marker trajectories
-% and the integer 'nof' giving the number of frames contained in the marker
-% data set.
-% -------------------------------------------------------------------------
-% Written by Torstein E. Daehlin, August 2021
-% -------------------------------------------------------------------------
-
-% References:
-%{
-Cappozzo A, Catani F, Della Croce U, Leardini A. Position and orientation
-    in space of bones during movement: anatomical frame definition and
-    determination. Clin Biomech. 1995, 10(17), pp 1–8.
-
-Della Croce U, Cappozzo A, Kerrigan DC. Pelvis and lower limb anatomical
-    landmark calibration precision and its propaga- tion to bone geometry
-    and joint angles. Med Biol Eng Comp. 1999, 37, pp 155–161.
-
-Wu G, Siegler S, Allard P, Kirtley C, Leardini A, Rosenbaum D, et al. ISB
-    recommendation on definitions of joint coordinate system of various
-    joints for the reporting of human joint motion. Part 1: ankle, hip, and
-    spine. J Biomech. 2002, 35, pp 543–548.
-%}
 
 % Preallocate
 origin = zeros(nof,3);

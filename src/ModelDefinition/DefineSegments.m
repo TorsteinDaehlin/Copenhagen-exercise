@@ -10,7 +10,9 @@ end
 % =================
 function segment = CreateSegment(markers, lcs, jc, subj, segment_name)
 
-% Define length, proximal radius, and distal radius for the given segment
+% Define length, proximal radius, distal radius, and mass for the given
+% segment. The segment masses are computed as a fraction of body mass using
+% the athropometric data from Dempster (1956).
 switch segment_name
     case 'pelvis'
         segment.len = dot(lcs.pelvis.origin - 0.5*(jc.hip_global.right + jc.hip_global.left), lcs.pelvis.epz);
@@ -54,7 +56,8 @@ switch segment_name
         error(['Invalid segment name: ' segment_name]);
 end
 
-% Find segment centre of mass
+% Segment centre of mass location and inertial tensors are computed based
+% on segements having the shape of conical frusta.
 segment.com = FindCom(segment.len, segment.prox_rad, segment.dist_rad);
 segment.tensor = FindTensor(segment.len, segment.prox_rad, segment.dist_rad, segment.mass);
 
@@ -64,20 +67,6 @@ end
 end
 
 function com = FindCom(len, prox_rad, dist_rad)
-% FindCom.m
-% -------------------------------------------------------------------------
-% Finds the centre of mass of a conical frustum with given length and
-% radii.
-% -------------------------------------------------------------------------
-% Syntax and description:
-% Centre of mass = FindCom(length, proximal radius, distal radius).
-%
-% The function takes the length, proximal radius, and distal radius of a
-% conical frustum as input and returns a vector that gives the position of
-% the frustum's centre of mass from its proximal end.
-% -------------------------------------------------------------------------
-% Written by Torstein E. Daehlin, August 2021.
-% -------------------------------------------------------------------------
 
 % Find centre of mass of conical frustum
 if dist_rad < prox_rad
@@ -95,20 +84,6 @@ com = [0, 0, -z];
 end
 
 function tensor = FindTensor(len, prox_rad, dist_rad, mass)
-% FindTensor.m
-% -------------------------------------------------------------------------
-% Finds the inertia tensor about the centre of mass of a segment with the
-% shape of a conical frustum.
-% -------------------------------------------------------------------------
-% Syntax and description:
-% Inertia tensor = FindTensor(length, proximal radius, distal radius, mass)
-%
-% The function takes the length, proximal radius, distal radius, and mass
-% of a conical frustum as input and returns the frustum's inertia tensor
-% computed about its centre of mass.
-% -------------------------------------------------------------------------
-% Written by Torstein E. Daehlin, August, 2021.
-% -------------------------------------------------------------------------
 
 % Find inertia tensor at centre of mass of conical frustum with given mass
 if dist_rad < prox_rad

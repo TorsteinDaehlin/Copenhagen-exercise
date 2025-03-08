@@ -1,5 +1,4 @@
 function [segment_angles, joint_angles, angular_velocity, angular_acceleration] = calcAngularKinematics(dynamic_lcs, static_lcs, nof, time)
-%
 
 % Calculate segment angles
 % ------------------------

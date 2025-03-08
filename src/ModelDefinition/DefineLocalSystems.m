@@ -1,29 +1,20 @@
 function [lcs, jc] = DefineLocalSystems(markers)
+% Local coordinate systems are defined as descibed by Wu et al 2002, while
+% hip joint centres are calculated using the regression equation from
+% Harrington et al. 2007. See main_Copenhagen() for details.
 
-% Define pelvis system
-% Use ISB recommendation + Harrington et al. 2007 for joint centres
+% Pelvis
 [lcs.pelvis, jc] = DefinePelvisLcs(markers, 1);
 
-% Define thigh systems
+% Thigh
 [lcs.thigh_r, jc] = DefineThighLcs(markers, jc, 1, 'right');
-% [lcs.thigh_l, jc] = DefineThighLcs(markers, jc, 1, 'left');
 
-% Define leg systems
+% Leg
 [lcs.leg_r, jc] = DefineLegLcs(markers, jc, 1, 'right');
-% [lcs.leg_l, jc] = DefineLegLcs(markers, jc, 1, 'left');
 
-% Define foot coordinate system
+% Foot
 [lcs.foot_r, jc] = DefineFootLcs(markers, jc, 1, 'right');
-% lcs.foot_l = DefineFootLcs(markers, 1, 'left');
 
-% Define vertical foot coordinate system
+% We use a "vertical foot" segment to compute foot kinematics
 [lcs.v_foot_r] = DefineVerticalFootLcs(markers, 1, 'right');
-
-% Define rearfoot coordinate systems
-% lcs.rearfoot_r = DefineRearfootLcs(markers, 1, 'right');
-% lcs.rearfoot_l = DefineRearfootLcs(markers, 1, 'left');
-
-% Define forefoot coordinate system
-% lcs.forefoot_r = DefineForefootLcs(markers, 1, 'right');
-% lcs.forefoot_l = DefineForefootLcs(markers, 1, 'left');
 end

@@ -1,13 +1,5 @@
 function [T] = LeastSquarePose(x_data,y_data)
-% LeastSquarePose.m
-% -------------------------------------------------------------------------
-% Estimates the pose of a segment based on an arbitraty cluster of markers
-% with known positions in the bone-embedded frame of the segment.
-% -------------------------------------------------------------------------
-% Syntax and description:
-% [Rotation matrix, postition vector] = LeastSquarePose(bone-embedded data,
-% global data)
-%
+
 % The function takes a 3 x m matrix with time-invariant positions of m
 % markers expressed in the bone embedded frame and a 3 x m matrix of the
 % position of the same markers in an instant in time measured during
@@ -16,20 +8,6 @@ function [T] = LeastSquarePose(x_data,y_data)
 % of the segment for the current instant in time, computed using the least
 % squares algorithm described by Söderkvist & Wedin (1993) and extended by
 % Cappozzo et al. (1997).
-% -------------------------------------------------------------------------
-% Written by Torstein E. Daehlin, August, 2021.
-% -------------------------------------------------------------------------
-
-% References
-%{
-Cappozzo, A., Cappello, A., Croce, U. D., & Pensalfini, F. (1997).
-    Surface-marker cluster design criteria for 3-D bone movement
-    reconstruction. IEEE Transactions on Biomedical Engineering, 44(12),
-    1165-1174.
-Söderkvist, I., & Wedin, P. Å. (1993). Determining the movements
-    of the skeleton using well-configured markers. Journal of biomechanics,
-    26(12), 1473-1477.
-%}
 
 % Preallocate
 X = zeros(size(x_data));

@@ -4,20 +4,22 @@ function [static_lcs, static_jc, segments, joints] = ProcessStatic(static, meta,
 nof = meta.nof;
 frame_rate = meta.fs;
 
-% Reduce static markers and define anatomical coordinate systems
+% If the static trial contains more than one frame, we average the marker
+% positions in the middle sample_rate / 2 portion of the static trial
 markers = static.markers;
 marker_names = fieldnames(markers);
 for i = 1:length(marker_names)
     markers.(marker_names{i}) = mean(markers.(marker_names{i})((nof/2)-(frame_rate/2):(nof/2)+(frame_rate/2),:));
 end
 
-% Define local coordinate systems
+% Local coordinate systems
 [static_lcs, static_jc] = DefineLocalSystems(markers);
 
-% Connect joints
+% We create a joints structure to keep track of the parent and child frames
+% of each joint
 joints = ConnectJoints(static_jc, 'pelvis');
 
-% Define segment parameters
+% Segment parameters
 segment_names = fieldnames(static_lcs);
 segment_names(contains(segment_names, {'v_foot_'})) = [];
 segments = DefineSegments(markers, static_lcs, static_jc, subj, segment_names);
